@@ -1,0 +1,176 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// Base Models - Extend according to your needs
+// ============================================
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  role      UserRole @default(CLIENT)
+  status    UserStatus @default(PENDING)
+  companyName String? @map("company_name")
+  phone       String?
+  address     String?
+  kbisFileUrl    String? @map("kbis_file_url")
+  customsFileUrl String? @map("customs_file_url")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  quotes Quote[]
+  files  File[]
+  metalAccounts MetalAccount[]
+  molds Mold[]
+  orders Order[]
+
+  @@map("users")
+}
+
+model Quote {
+  id          String      @id @default(cuid())
+  reference   String      @unique @default(cuid())
+  status      QuoteStatus @default(PENDING)
+  totalPrice  Decimal?    @map("total_price") @db.Decimal(10, 2)
+  notes       String?
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  userId String? @map("user_id")
+  user   User?   @relation(fields: [userId], references: [id])
+
+  files File[]
+
+  @@map("quotes")
+}
+
+model File {
+  id           String   @id @default(cuid())
+  originalName String   @map("original_name")
+  storagePath  String   @map("storage_path")
+  mimeType     String   @map("mime_type")
+  size         Int
+  metadata     Json?    // For STL/OBJ: dimensions, volume, etc.
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  userId  String? @map("user_id")
+  user    User?   @relation(fields: [userId], references: [id])
+
+  quoteId String? @map("quote_id")
+  quote   Quote?  @relation(fields: [quoteId], references: [id])
+
+  @@map("files")
+}
+
+enum QuoteStatus {
+  PENDING
+  PROCESSING
+  QUOTED
+  ACCEPTED
+  REJECTED
+  COMPLETED
+}
+
+// Rôles et statuts utilisateur
+enum UserRole {
+  ADMIN
+  CLIENT
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  REJECTED
+}
+
+// Comptes poids par métal
+model MetalAccount {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  user       User     @relation(fields: [userId], references: [id])
+  metalType  MetalType @map("metal_type")
+  balance    Decimal   @db.Decimal(10, 3)
+  lastUpdate DateTime  @default(now()) @map("last_update")
+
+  transactions Transaction[]
+
+  @@map("metal_accounts")
+  @@index([userId])
+}
+
+// Transactions de poids
+model Transaction {
+  id        String         @id @default(cuid())
+  accountId String         @map("account_id")
+  account   MetalAccount   @relation(fields: [accountId], references: [id])
+  type      TransactionType
+  amount    Decimal        @db.Decimal(10, 3)
+  label     String
+  date      DateTime
+
+  @@map("transactions")
+  @@index([accountId])
+}
+
+// Bibliothèque de moules
+model Mold {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id])
+  reference String
+  name      String
+  photoUrl  String?  @map("photo_url")
+
+  @@map("molds")
+  @@index([userId])
+}
+
+// Commandes
+model Order {
+  id             String     @id @default(cuid())
+  userId         String     @map("user_id")
+  user           User       @relation(fields: [userId], references: [id])
+  status         OrderStatus
+  stlFileUrl     String?    @map("stl_file_url")
+  estimatedPrice Decimal?   @map("estimated_price") @db.Decimal(10, 2)
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+
+  @@map("orders")
+  @@index([userId])
+}
+
+// Types de métal
+enum MetalType {
+  OR_JAUNE_375
+  OR_JAUNE_750
+  OR_ROSE_750
+  OR_GRIS_750
+  PLATINE_950
+  PALLADIUM
+  ARGENT_925
+}
+
+// Type de transaction
+enum TransactionType {
+  DEBIT
+  CREDIT
+}
+
+// Statut de commande
+enum OrderStatus {
+  EN_ATTENTE
+  TIRAGE_OK
+  FONDU
+  EXPEDIE
+}
