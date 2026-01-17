@@ -18,6 +18,7 @@ model User {
   id        String   @id @default(cuid())
   email     String   @unique
   name      String?
+  passwordHash String  @map("password_hash")
   role      UserRole @default(CLIENT)
   status    UserStatus @default(PENDING)
   companyName String? @map("company_name")

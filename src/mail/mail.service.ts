@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Resend } from 'resend';
+import * as nodemailer from 'nodemailer';
 
 export interface EmailOptions {
   to: string | string[];
@@ -18,13 +19,18 @@ export interface EmailResult {
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
-  private readonly resend: Resend;
+  private readonly resend: Resend | null;
   private readonly from: string;
+  private readonly smtpTransport: nodemailer.Transporter | null;
 
   constructor(private readonly configService: ConfigService) {
     const apiKey = this.configService.get<string>('RESEND_API_KEY', '');
-    this.resend = new Resend(apiKey);
+    this.resend = apiKey ? new Resend(apiKey) : null;
     this.from = this.configService.get<string>('MAIL_FROM', 'noreply@example.com');
+    const host = this.configService.get<string>('SMTP_HOST', '');
+    const portStr = this.configService.get<string>('SMTP_PORT', '');
+    const port = portStr ? Number(portStr) : 0;
+    this.smtpTransport = host && port ? nodemailer.createTransport({ host, port, secure: false, ignoreTLS: true, tls: { rejectUnauthorized: false } }) : null;
   }
 
   /**
@@ -32,22 +38,38 @@ export class MailService {
    */
   async sendEmail(options: EmailOptions): Promise<EmailResult> {
     try {
-      const { data, error } = await this.resend.emails.send({
-        from: this.from,
-        to: options.to,
-        subject: options.subject,
-        html: options.html,
-        text: options.text,
-        replyTo: options.replyTo,
-      });
+      if (this.resend) {
+        const { data, error } = await this.resend.emails.send({
+          from: this.from,
+          to: options.to,
+          subject: options.subject,
+          html: options.html,
+          text: options.text,
+          replyTo: options.replyTo,
+        });
 
-      if (error) {
-        this.logger.error(`Failed to send email: ${error.message}`);
-        return { id: '', success: false };
+        if (error) {
+          this.logger.error(`Failed to send email: ${error.message}`);
+          return { id: '', success: false };
+        }
+
+        this.logger.log(`📧 Email sent successfully: ${data?.id}`);
+        return { id: data?.id ?? '', success: true };
       }
-
-      this.logger.log(`📧 Email sent successfully: ${data?.id}`);
-      return { id: data?.id ?? '', success: true };
+      if (this.smtpTransport) {
+        const info = await this.smtpTransport.sendMail({
+          from: this.from,
+          to: Array.isArray(options.to) ? options.to.join(',') : options.to,
+          subject: options.subject,
+          html: options.html,
+          text: options.text,
+          replyTo: options.replyTo,
+        });
+        this.logger.log(`📧 SMTP email sent: ${info.messageId}`);
+        return { id: info.messageId, success: true };
+      }
+      this.logger.warn(`Email non envoyé (aucun transport configuré). Sujet: ${options.subject}`);
+      return { id: '', success: true };
     } catch (error) {
       this.logger.error(`Failed to send email: ${error}`);
       return { id: '', success: false };

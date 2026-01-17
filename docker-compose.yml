@@ -7,8 +7,9 @@ services:
       POSTGRES_USER: lecreuset
       POSTGRES_PASSWORD: lecreuset_secret
       POSTGRES_DB: lecreuset
+      POSTGRES_HOST_AUTH_METHOD: trust
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -25,8 +26,8 @@ services:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin123
     ports:
-      - "9000:9000"   # API
-      - "9001:9001"   # Console
+      - "9002:9000"   # API
+      - "9003:9001"   # Console
     volumes:
       - minio_data:/data
     command: server /data --console-address ":9001"
@@ -41,8 +42,8 @@ services:
     container_name: lecreuset-mailhog
     restart: unless-stopped
     ports:
-      - "1025:1025"   # SMTP
-      - "8025:8025"   # Web UI
+      - "1026:1025"   # SMTP
+      - "8026:8025"   # Web UI
     logging:
       driver: "none"
 

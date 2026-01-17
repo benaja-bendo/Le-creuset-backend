@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
+import { randomBytes } from 'crypto';
 
 @Injectable()
 export class UsersService {
@@ -11,6 +12,7 @@ export class UsersService {
       data: {
         email: dto.email,
         name: dto.name,
+        passwordHash: `disabled:${randomBytes(16).toString('hex')}`,
         role: 'CLIENT',
         status: 'PENDING',
         companyName: dto.companyName,
@@ -40,4 +42,3 @@ export class UsersService {
     return this.prisma.user.findUnique({ where: { id } });
   }
 }
-

@@ -8,6 +8,7 @@ import { StorageModule } from './storage/storage.module';
 import { MailModule } from './mail/mail.module';
 import { HealthController } from './health.controller';
 import { UsersModule } from './users/users.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { UsersModule } from './users/users.module';
     StorageModule,
     MailModule,
     UsersModule,
+    AuthModule,
   ],
   controllers: [HealthController],
   providers: [

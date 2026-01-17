@@ -1,85 +1,59 @@
-# Le Creuset - Backend API
+# Backend – API NestJS
 
-Backend NestJS pour la gestion des devis et fichiers 3D.
+API NestJS pour l’espace professionnel (auth, utilisateurs, devis/commandes, stockage, emails).
 
-## Stack Technique
+## Stack
+- TypeScript, NestJS, Prisma (PostgreSQL)
+- MinIO (S3-compatible) pour le stockage
+- Resend ou SMTP (Mailhog) pour les emails
+- Zod pour la validation DTO
 
-| Composant | Technologie |
-|-----------|-------------|
-| Langage | TypeScript (Strict mode) |
-| Framework | NestJS |
-| Base de données | PostgreSQL |
-| ORM | Prisma |
-| Stockage | MinIO (S3-compatible) |
-| Emails | Resend |
-| Validation | Zod |
-
-## Démarrage rapide
-
-### 1. Démarrer les services Docker
-
+## Démarrage local
 ```bash
-docker-compose up -d
+pnpm install
+docker compose up -d
+pnpm prisma:migrate --name init_prd
+pnpm prisma:seed
+pnpm start:dev
 ```
+API: http://localhost:3000/api
 
-Services disponibles:
-- **PostgreSQL**: `localhost:5432`
-- **MinIO Console**: http://localhost:9001 (minioadmin/minioadmin123)
-- **Mailhog**: http://localhost:8025
+Services Docker:
+- PostgreSQL: localhost:5433
+- MinIO: API http://localhost:9002, Console http://localhost:9003
+- Mailhog: SMTP localhost:1026, Web UI http://localhost:8026
 
-### 2. Installer les dépendances
+## Configuration (.env)
+- PORT, NODE_ENV
+- DATABASE_URL
+- MINIO_ENDPOINT, MINIO_PORT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY, MINIO_BUCKET
+- RESEND_API_KEY (facultatif), MAIL_FROM
+- SMTP_HOST, SMTP_PORT (fallback dev → Mailhog)
+- ADMIN_EMAIL
+- CORS_ORIGIN
 
+## Authentification
+- Inscription: `POST /api/auth/register`
+  - Crée un utilisateur `PENDING`, envoie un email à l’admin
+- Connexion: `POST /api/auth/login`
+  - Refuse si statut ≠ `ACTIVE`
+- Validation admin:
+  - `GET /api/users/pending`
+  - `PATCH /api/users/:id/status` → `ACTIVE` ou `REJECTED`
+
+## Santé
+- `GET /api/health` → état global + base de données
+
+## Commandes utiles
 ```bash
-npm install
+pnpm prisma:generate   # Générer client Prisma
+pnpm prisma:migrate    # Migrations dev
+pnpm prisma:studio     # Studio Prisma
+pnpm prisma:seed       # Créer l’admin par défaut
+pnpm start:dev         # Dév (watch)
+pnpm build && pnpm start:prod
 ```
 
-### 3. Configurer l'environnement
-
-```bash
-cp .env.example .env
-# Éditer .env avec vos valeurs
-```
-
-### 4. Initialiser la base de données
-
-```bash
-npm run prisma:generate
-npm run prisma:push
-```
-
-### 5. Lancer l'application
-
-```bash
-npm run start:dev
-```
-
-L'API est accessible sur http://localhost:3000/api
-
-## Structure du projet
-
-```
-src/
-├── main.ts              # Point d'entrée
-├── app.module.ts        # Module racine
-├── health.controller.ts # Endpoint /health
-├── prisma/              # Service Prisma (global)
-├── storage/             # Service MinIO (global)
-└── mail/                # Service Resend (global)
-```
-
-## Endpoints
-
-| Méthode | Route | Description |
-|---------|-------|-------------|
-| GET | `/api/health` | Health check |
-
-## Scripts disponibles
-
-```bash
-npm run start:dev     # Développement (watch mode)
-npm run build         # Build production
-npm run start:prod    # Lancer en production
-npm run lint          # Linter
-npm run test          # Tests unitaires
-npm run prisma:studio # Interface Prisma
-```
+## Notes
+- En dev, les emails passent par SMTP Mailhog si RESEND_API_KEY n’est pas défini.
+- Les ports sont ajustés pour éviter les collisions locales.
