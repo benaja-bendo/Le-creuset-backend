@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException, ForbiddenException } from '@nestjs/c
 import { PrismaService } from '../prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { JwtService } from '@nestjs/jwt';
 import { randomBytes, scryptSync, timingSafeEqual } from 'crypto';
 
 function hashPassword(password: string, salt: string): string {
@@ -17,7 +18,10 @@ function verifyPassword(password: string, stored: string): boolean {
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly jwtService: JwtService,
+  ) {}
 
   async register(dto: RegisterDto) {
     const exists = await this.prisma.user.findUnique({ where: { email: dto.email } });
@@ -50,9 +54,16 @@ export class AuthService {
     if (user.status === 'REJECTED') {
       throw new ForbiddenException('Compte rejeté');
     }
-    const token = `dev-${user.id}`;
+
+    const payload = { 
+      sub: user.id, 
+      email: user.email, 
+      role: user.role,
+      status: user.status 
+    };
+
     return {
-      token,
+      token: this.jwtService.sign(payload),
       user: {
         id: user.id,
         email: user.email,

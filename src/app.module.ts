@@ -9,6 +9,9 @@ import { MailModule } from './mail/mail.module';
 import { HealthController } from './health.controller';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
+import { WeightsModule } from './weights/weights.module';
+import { MoldsModule } from './molds/molds.module';
+import { OrdersModule } from './orders/orders.module';
 
 @Module({
   imports: [
@@ -24,6 +27,9 @@ import { AuthModule } from './auth/auth.module';
     MailModule,
     UsersModule,
     AuthModule,
+    WeightsModule,
+    MoldsModule,
+    OrdersModule,
   ],
   controllers: [HealthController],
   providers: [

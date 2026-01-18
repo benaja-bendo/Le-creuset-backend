@@ -29,3 +29,7 @@ coverage/
 
 # Prisma
 prisma/migrations/**/migration_lock.toml
+
+# Uploads
+uploads/
+
