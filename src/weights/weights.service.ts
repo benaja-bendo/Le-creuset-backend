@@ -97,4 +97,13 @@ export class WeightsService {
       });
     });
   }
+
+  /**
+   * Find metal account by user ID and metal type
+   */
+  async findAccountByUserAndMetal(userId: string, metalType: MetalType) {
+    return this.prisma.metalAccount.findFirst({
+      where: { userId, metalType },
+    });
+  }
 }

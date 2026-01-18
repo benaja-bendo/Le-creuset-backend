@@ -34,6 +34,7 @@ model User {
   metalAccounts MetalAccount[]
   molds Mold[]
   orders Order[]
+  invoices Invoice[]
 
   @@map("users")
 }
@@ -144,11 +145,36 @@ model Order {
   status         OrderStatus
   stlFileUrl     String?    @map("stl_file_url")
   estimatedPrice Decimal?   @map("estimated_price") @db.Decimal(10, 2)
+  notes          String?
+  materialType   String?    @map("material_type")
+  finishType     String?    @map("finish_type")
+  quantity       Int        @default(1)
   createdAt      DateTime   @default(now()) @map("created_at")
   updatedAt      DateTime   @updatedAt @map("updated_at")
 
+  invoices       Invoice[]
+
   @@map("orders")
   @@index([userId])
+}
+
+// Factures
+model Invoice {
+  id            String   @id @default(cuid())
+  invoiceNumber String   @unique @map("invoice_number")
+  orderId       String   @map("order_id")
+  order         Order    @relation(fields: [orderId], references: [id])
+  userId        String   @map("user_id")
+  user          User     @relation(fields: [userId], references: [id])
+  fileUrl       String   @map("file_url")
+  amount        Decimal? @db.Decimal(10, 2)
+  issueDate     DateTime @default(now()) @map("issue_date")
+  notes         String?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@map("invoices")
+  @@index([userId])
+  @@index([orderId])
 }
 
 // Types de métal

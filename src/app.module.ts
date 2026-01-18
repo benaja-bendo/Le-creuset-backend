@@ -12,6 +12,7 @@ import { AuthModule } from './auth/auth.module';
 import { WeightsModule } from './weights/weights.module';
 import { MoldsModule } from './molds/molds.module';
 import { OrdersModule } from './orders/orders.module';
+import { InvoicesModule } from './invoices/invoices.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { OrdersModule } from './orders/orders.module';
     WeightsModule,
     MoldsModule,
     OrdersModule,
+    InvoicesModule,
   ],
   controllers: [HealthController],
   providers: [

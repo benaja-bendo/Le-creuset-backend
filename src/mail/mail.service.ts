@@ -138,4 +138,47 @@ export class MailService {
       text: 'Votre compte professionnel a été activé. Connectez-vous: http://localhost:5173/login',
     });
   }
+
+  /**
+   * Send notification when order is completed with invoice
+   */
+  async sendOrderCompletedEmail(
+    to: string,
+    orderRef: string,
+    invoiceNumber: string,
+    amount?: number,
+  ): Promise<EmailResult> {
+    const amountText = amount ? `Montant: ${amount} €` : '';
+    
+    return this.sendEmail({
+      to,
+      subject: `Votre commande #${orderRef} est terminée - Facture disponible`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #1a1a1a;">Votre commande est terminée !</h1>
+          <p>Bonjour,</p>
+          <p>Nous avons le plaisir de vous informer que votre commande <strong>#${orderRef}</strong> a été traitée avec succès.</p>
+          
+          <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="margin-top: 0; color: #333;">Facture N° ${invoiceNumber}</h3>
+            ${amountText ? `<p style="font-size: 24px; font-weight: bold; color: #c9a227;">${amountText}</p>` : ''}
+            <p style="color: #666;">Votre facture est disponible dans votre espace client.</p>
+          </div>
+          
+          <p>
+            <a href="http://localhost:5173/client/invoices" 
+               style="display: inline-block; background: #c9a227; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+              Voir ma facture
+            </a>
+          </p>
+          
+          <p style="color: #666; font-size: 14px; margin-top: 30px;">
+            Merci pour votre confiance.<br/>
+            L'équipe Le Creuset
+          </p>
+        </div>
+      `,
+      text: `Votre commande #${orderRef} est terminée.\n\nFacture N° ${invoiceNumber}\n${amountText}\n\nConnectez-vous pour télécharger votre facture: http://localhost:5173/client/invoices`,
+    });
+  }
 }
