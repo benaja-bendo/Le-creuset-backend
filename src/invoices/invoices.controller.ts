@@ -38,6 +38,16 @@ export class InvoicesController {
   }
 
   /**
+   * Get invoices for a specific user (admin/internal)
+   */
+  @Get('user/:userId')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN')
+  async findByUser(@Param('userId') userId: string) {
+    return this.invoicesService.findByUserId(userId);
+  }
+
+  /**
    * Get invoices for a specific order
    */
   @Get('order/:orderId')

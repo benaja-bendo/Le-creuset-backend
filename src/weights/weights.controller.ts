@@ -27,6 +27,16 @@ export class WeightsController {
   async getAllWeights() {
     return this.weightsService.getAllAccounts();
   }
+  
+  /**
+   * Admin: view metal accounts for a specific user
+   */
+  @Get('user/:userId')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN')
+  async getUserWeights(@Param('userId') userId: string) {
+    return this.weightsService.getUserAccounts(userId);
+  }
 
   /**
    * Admin: add a transaction to an account
