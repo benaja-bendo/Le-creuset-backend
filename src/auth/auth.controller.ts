@@ -36,6 +36,11 @@ export class AuthController {
     return this.authService.login(dto);
   }
 
+  @Post('logout')
+  async logout() {
+    return { ok: true };
+  }
+
   @Post('mail-test')
   async mailTest() {
     const res = await this.mailService.sendEmail({

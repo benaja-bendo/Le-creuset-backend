@@ -47,8 +47,8 @@ export class AuthService {
     if (!verifyPassword(dto.password, user.passwordHash)) {
       throw new UnauthorizedException('Identifiants invalides');
     }
-    if (user.status !== 'ACTIVE') {
-      throw new ForbiddenException('Compte non actif');
+    if (user.status === 'REJECTED') {
+      throw new ForbiddenException('Compte rejeté');
     }
     const token = `dev-${user.id}`;
     return {
@@ -63,4 +63,3 @@ export class AuthService {
     };
   }
 }
-

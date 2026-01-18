@@ -122,4 +122,20 @@ export class MailService {
       `,
     });
   }
+
+  /**
+   * Send welcome email to newly activated user
+   */
+  async sendWelcomeEmail(to: string): Promise<EmailResult> {
+    return this.sendEmail({
+      to,
+      subject: 'Votre compte a été activé',
+      html: `
+        <h1>Bienvenue</h1>
+        <p>Votre compte professionnel a été activé.</p>
+        <p>Vous pouvez vous connecter ici: <a href="http://localhost:5173/login">Se connecter</a></p>
+      `,
+      text: 'Votre compte professionnel a été activé. Connectez-vous: http://localhost:5173/login',
+    });
+  }
 }

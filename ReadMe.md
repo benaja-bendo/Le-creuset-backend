@@ -36,10 +36,11 @@ Services Docker:
 - Inscription: `POST /api/auth/register`
   - Crée un utilisateur `PENDING`, envoie un email à l’admin
 - Connexion: `POST /api/auth/login`
-  - Refuse si statut ≠ `ACTIVE`
+  - Accepte `PENDING`, refuse `REJECTED`, renvoie le `status` dans la réponse
+- Déconnexion: `POST /api/auth/logout` (no-op pour dev)
 - Validation admin:
   - `GET /api/users/pending`
-  - `PATCH /api/users/:id/status` → `ACTIVE` ou `REJECTED`
+  - `PATCH /api/users/:id/status` → `ACTIVE` (email de bienvenue) ou `REJECTED` (suppression compte)
 
 ## Santé
 - `GET /api/health` → état global + base de données

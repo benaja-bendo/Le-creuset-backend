@@ -16,14 +16,14 @@ export class UsersController {
     const user = await this.usersService.register(dto);
     await this.mailService.sendEmail({
       to: process.env.ADMIN_EMAIL || 'admin@lecreuset.fr',
-      subject: `Nouveau compte en attente : ${user.companyName ?? user.email}`,
+      subject: `Nouveau compte en attente : ${dto.companyName ?? dto.email}`,
       html: `
         <h1>Nouvelle inscription à valider</h1>
         <ul>
-          <li><strong>Email:</strong> ${user.email}</li>
-          <li><strong>Entreprise:</strong> ${user.companyName ?? '-'}</li>
-          <li><strong>KBIS:</strong> ${user.kbisFileUrl ?? '-'}</li>
-          <li><strong>Douanes:</strong> ${user.customsFileUrl ?? '-'}</li>
+          <li><strong>Email:</strong> ${dto.email}</li>
+          <li><strong>Entreprise:</strong> ${dto.companyName ?? '-'}</li>
+          <li><strong>KBIS:</strong> ${dto.kbisFileUrl ?? '-'}</li>
+          <li><strong>Douanes:</strong> ${dto.customsFileUrl ?? '-'}</li>
         </ul>
       `,
     });
@@ -37,8 +37,16 @@ export class UsersController {
 
   @Patch(':id/status')
   async updateStatus(@Param('id') id: string, @Body() dto: UpdateStatusDto) {
-    const user = await this.usersService.updateStatus(id, dto.status);
-    return { id: user.id, status: user.status };
+    const result = await this.usersService.updateStatus(id, dto.status);
+    if (dto.status === 'ACTIVE') {
+      const u = await this.usersService.findById(id);
+      if (u?.email) await this.mailService.sendWelcomeEmail(u.email);
+      return { id, status: 'ACTIVE' };
+    }
+    if (dto.status === 'REJECTED') {
+      return { id, status: 'REJECTED', deleted: true };
+    }
+    return { id, status: 'PENDING' };
   }
 
   @Get(':id')
@@ -46,4 +54,3 @@ export class UsersController {
     return this.usersService.findById(id);
   }
 }
-

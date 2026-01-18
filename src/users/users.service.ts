@@ -32,10 +32,10 @@ export class UsersService {
   }
 
   async updateStatus(id: string, status: 'PENDING' | 'ACTIVE' | 'REJECTED') {
-    return this.prisma.user.update({
-      where: { id },
-      data: { status },
-    });
+    if (status === 'REJECTED') {
+      return this.prisma.user.delete({ where: { id } });
+    }
+    return this.prisma.user.update({ where: { id }, data: { status } });
   }
 
   async findById(id: string) {
