@@ -1,60 +1,45 @@
-# Backend – API NestJS
+# Le Creuset - Backend API
 
-API NestJS pour l’espace professionnel (auth, utilisateurs, devis/commandes, stockage, emails).
+API REST développée avec NestJS, Prisma et PostgreSQL.
 
-## Stack
-- TypeScript, NestJS, Prisma (PostgreSQL)
-- MinIO (S3-compatible) pour le stockage
-- Resend ou SMTP (Mailhog) pour les emails
-- Zod pour la validation DTO
+## Développement Local
 
-## Démarrage local
-```bash
-pnpm install
-docker compose up -d
-pnpm prisma:migrate --name init_prd
-pnpm prisma:seed
-pnpm start:dev
-```
-API: http://localhost:3000/api
+1.  Lancer la base de données locale (via Docker) :
+    ```bash
+    docker compose up -d postgres
+    ```
+2.  Installer les dépendances :
+    ```bash
+    pnpm install
+    ```
+3.  Lancer le serveur de développement :
+    ```bash
+    pnpm start:dev
+    ```
 
-Services Docker:
-- PostgreSQL: localhost:5433
-- MinIO: API http://localhost:9002, Console http://localhost:9003
-- Mailhog: SMTP localhost:1026, Web UI http://localhost:8026
+## Architecture de Déploiement
 
-## Configuration (.env)
-- PORT, NODE_ENV
-- DATABASE_URL
-- MINIO_ENDPOINT, MINIO_PORT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY, MINIO_BUCKET
-- RESEND_API_KEY (facultatif), MAIL_FROM
-- SMTP_HOST, SMTP_PORT (fallback dev → Mailhog)
-- ADMIN_EMAIL
-- CORS_ORIGIN
+Le déploiement est automatisé via **GitHub Actions**, assurant une mise à jour fluide de l'API.
 
-## Authentification
-- Inscription: `POST /api/auth/register`
-  - Crée un utilisateur `PENDING`, envoie un email à l’admin
-- Connexion: `POST /api/auth/login`
-  - Accepte `PENDING`, refuse `REJECTED`, renvoie le `status` dans la réponse
-- Déconnexion: `POST /api/auth/logout` (no-op pour dev)
-- Validation admin:
-  - `GET /api/users/pending`
-  - `PATCH /api/users/:id/status` → `ACTIVE` (email de bienvenue) ou `REJECTED` (suppression compte)
+### Pipeline CI/CD (`.github/workflows/deploy.yml`)
 
-## Santé
-- `GET /api/health` → état global + base de données
+À chaque `push` sur la branche `main` :
 
-## Commandes utiles
-```bash
-pnpm prisma:generate   # Générer client Prisma
-pnpm prisma:migrate    # Migrations dev
-pnpm prisma:studio     # Studio Prisma
-pnpm prisma:seed       # Créer l’admin par défaut
-pnpm start:dev         # Dév (watch)
-pnpm build && pnpm start:prod
-```
+1.  **Build** : Construction de l'image Docker optimisée (Node Alpine, dépendances de production uniquement).
+2.  **Push** : Envoi de l'image sur GitHub Container Registry (GHCR).
+3.  **Deploy** :
+    *   Connexion SSH au VPS.
+    *   Pull de la dernière image (`docker compose pull back`).
+    *   Redémarrage du service (`docker compose up -d back`).
+    *   *Note* : Les migrations de base de données sont exécutées automatiquement au démarrage du conteneur via `docker-entrypoint.sh`.
 
-## Notes
-- En dev, les emails passent par SMTP Mailhog si RESEND_API_KEY n’est pas défini.
-- Les ports sont ajustés pour éviter les collisions locales.
+### Gestion de la Base de Données
+
+*   **ORM** : Prisma.
+*   **Migrations** : Les changements de schéma sont appliqués automatiquement en production.
+    *   Pour créer une migration en dev : `npx prisma migrate dev`.
+    *   En prod : `npx prisma migrate deploy` (automatisé).
+
+### Variables d'environnement Production
+
+Les variables sensibles (DB password, API keys) sont gérées via un fichier `.env` sur le serveur de production (injecté via les Secrets GitHub lors du setup initial ou mis à jour manuellement).

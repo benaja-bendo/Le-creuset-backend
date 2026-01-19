@@ -1,10 +1,10 @@
-FROM node:22-bookworm-slim AS deps
+FROM node:22-alpine AS deps
 WORKDIR /app
 RUN corepack enable
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
-FROM node:22-bookworm-slim AS prod-deps
+FROM node:22-alpine AS prod-deps
 WORKDIR /app
 RUN corepack enable
 COPY package.json pnpm-lock.yaml ./
@@ -18,7 +18,7 @@ COPY nest-cli.json tsconfig.json ./
 RUN pnpm prisma:generate
 RUN pnpm build
 
-FROM node:22-bookworm-slim AS runner
+FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 RUN corepack enable
