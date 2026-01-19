@@ -1,4 +1,29 @@
 services:
+  api:
+    build: .
+    container_name: lecreuset-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://lecreuset:lecreuset_secret@postgres:5432/lecreuset?schema=public
+      - JWT_SECRET=change_me
+      - JWT_EXPIRES_IN=7d
+      - MINIO_ENDPOINT=minio
+      - MINIO_PORT=9000
+      - MINIO_USE_SSL=false
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin123
+      - MINIO_BUCKET=lecreuset-files
+      - SMTP_HOST=mailhog
+      - SMTP_PORT=1025
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
   postgres:
     image: postgres:16-alpine
     container_name: lecreuset-postgres
