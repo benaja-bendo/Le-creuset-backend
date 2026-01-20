@@ -91,7 +91,7 @@ jobs:
             fi
             
             # Validate .env file
-            required_vars="DOMAIN_NAME POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB MINIO_ROOT_USER MINIO_ROOT_PASSWORD"
+            required_vars="DOMAIN_NAME POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB MINIO_ROOT_USER MINIO_ROOT_PASSWORD JWT_SECRET"
             missing_vars=""
             for var in $required_vars; do
               if ! grep -q "$var=" .env; then
