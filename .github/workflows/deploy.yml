@@ -91,8 +91,17 @@ jobs:
             fi
             
             # Validate .env file
-            if ! grep -q "DOMAIN_NAME=" .env; then
-              echo "Error: DOMAIN_NAME is missing in .env file (check ENV_FILE secret or file on server)"
+            required_vars="DOMAIN_NAME POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB MINIO_ROOT_USER MINIO_ROOT_PASSWORD"
+            missing_vars=""
+            for var in $required_vars; do
+              if ! grep -q "$var=" .env; then
+                missing_vars="$missing_vars $var"
+              fi
+            done
+            
+            if [ -n "$missing_vars" ]; then
+              echo "Error: Missing required variables in .env file:$missing_vars"
+              echo "Please check your ENV_FILE secret."
               exit 1
             fi
 
