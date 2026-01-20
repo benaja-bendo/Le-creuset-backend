@@ -77,5 +77,9 @@ jobs:
             # Restart back service
             docker compose up -d back
             
+            # Debug: Check running containers
+            docker compose ps
+            docker ps
+            
             # Cleanup
             docker image prune -f
