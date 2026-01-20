@@ -8,7 +8,9 @@ FROM node:22-alpine AS prod-deps
 WORKDIR /app
 RUN corepack enable
 COPY package.json pnpm-lock.yaml ./
+COPY prisma ./prisma
 RUN pnpm install --prod --frozen-lockfile
+RUN pnpm prisma generate
 
 FROM deps AS build
 WORKDIR /app
