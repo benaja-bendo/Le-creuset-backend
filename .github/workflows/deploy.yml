@@ -35,6 +35,10 @@ jobs:
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
 
+      - name: Lowercase Repo Name
+        run: |
+          echo "REPO_LC=${GITHUB_REPOSITORY,,}" >>${GITHUB_ENV}
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -67,6 +71,15 @@ jobs:
             
             # Create/Update .env file
             echo "${{ secrets.ENV_FILE }}" > .env
+            
+            # Validate .env file
+            if ! grep -q "DOMAIN_NAME=" .env; then
+              echo "Error: DOMAIN_NAME is missing in .env file (from ENV_FILE secret)"
+              exit 1
+            fi
+
+            # Define image name
+            export IMAGE_BACK=ghcr.io/${{ env.REPO_LC }}:latest
             
             # Run migrations (Optional but recommended for back)
             # docker compose run --rm back npx prisma migrate deploy
