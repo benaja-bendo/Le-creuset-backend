@@ -33,7 +33,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=back-latest
 
       - name: Lowercase Repo Name
         run: |
@@ -56,30 +56,48 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-and-push
     steps:
+      - name: Lowercase Repo Name
+        run: |
+          echo "REPO_LC=${GITHUB_REPOSITORY,,}" >>${GITHUB_ENV}
+
       - name: Deploy to VPS
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          ENV_FILE: ${{ secrets.ENV_FILE }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_KEY }}
           passphrase: ${{ secrets.VPS_PASSPHRASE }}
+          envs: ENV_FILE,REPO_LC
           script: |
             cd /opt/le-creuset
             
             # Login to GHCR
             echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
-            # Create/Update .env file
-            echo "${{ secrets.ENV_FILE }}" > .env
+            # Create/Update .env file only if secret is set
+            if [ -n "$ENV_FILE" ]; then
+              echo "$ENV_FILE" > .env
+              echo "Updated .env from secrets"
+            else
+              echo "Secret ENV_FILE is empty. Checking for existing .env..."
+              if [ -f .env ]; then
+                echo "Using existing .env file on server."
+              else
+                echo "Error: No .env file found and ENV_FILE secret is empty."
+                exit 1
+              fi
+            fi
             
             # Validate .env file
             if ! grep -q "DOMAIN_NAME=" .env; then
-              echo "Error: DOMAIN_NAME is missing in .env file (from ENV_FILE secret)"
+              echo "Error: DOMAIN_NAME is missing in .env file (check ENV_FILE secret or file on server)"
               exit 1
             fi
 
             # Define image name
-            export IMAGE_BACK=ghcr.io/${{ env.REPO_LC }}:latest
+            export IMAGE_BACK=ghcr.io/$REPO_LC:back-latest
             
             # Run migrations (Optional but recommended for back)
             # docker compose run --rm back npx prisma migrate deploy
