@@ -71,55 +71,52 @@ jobs:
           passphrase: ${{ secrets.VPS_PASSPHRASE }}
           envs: ENV_FILE,REPO_LC
           script: |
-            cd /opt/le-creuset
+            # Création du dossier dédié
+            mkdir -p /opt/apps/backend
+            cd /opt/apps/backend
             
-            # Login to GHCR
+            # Login Docker
             echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
-            # Create/Update .env file only if secret is set
+            # Gestion du fichier .env via le secret ENV_FILE
             if [ -n "$ENV_FILE" ]; then
               echo "$ENV_FILE" > .env
               echo "Updated .env from secrets"
             else
               echo "Secret ENV_FILE is empty. Checking for existing .env..."
-              if [ -f .env ]; then
-                echo "Using existing .env file on server."
-              else
+              if [ ! -f .env ]; then
                 echo "Error: No .env file found and ENV_FILE secret is empty."
                 exit 1
               fi
             fi
-            
-            # Validate .env file
-            required_vars="DOMAIN_NAME POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB MINIO_ROOT_USER MINIO_ROOT_PASSWORD JWT_SECRET"
-            missing_vars=""
-            for var in $required_vars; do
-              if ! grep -q "$var=" .env; then
-                missing_vars="$missing_vars $var"
-              fi
-            done
-            
-            if [ -n "$missing_vars" ]; then
-              echo "Error: Missing required variables in .env file:$missing_vars"
-              echo "Please check your ENV_FILE secret."
-              exit 1
-            fi
 
-            # Define image name
-            export IMAGE_BACK=ghcr.io/$REPO_LC:back-latest
+            # Création du docker-compose.yml à la volée
+            cat <<EOF > docker-compose.yml
+            services:
+              api:
+                image: ghcr.io/$REPO_LC:back-latest
+                container_name: lecreuset-api
+                restart: always
+                env_file: .env
+                environment:
+                  - DATABASE_URL=postgresql://\${POSTGRES_USER}:\${POSTGRES_PASSWORD}@postgres:5432/\${POSTGRES_DB}
+                networks:
+                  - lecreuset_network
+                labels:
+                  - "traefik.enable=true"
+                  - "traefik.http.routers.api.rule=Host(\`api.lecreuset.benaja-bendo.fr\`)"
+                  - "traefik.http.routers.api.entrypoints=websecure"
+                  - "traefik.http.routers.api.tls.certresolver=myresolver"
+                  - "traefik.http.services.api.loadbalancer.server.port=3000"
+
+            networks:
+              lecreuset_network:
+                external: true
+            EOF
             
-            # Run migrations (Optional but recommended for back)
-            # docker compose run --rm back npx prisma migrate deploy
+            # Déploiement
+            docker compose pull
+            docker compose up -d
             
-            # Pull new image for back
-            docker compose pull back
-            
-            # Restart back service
-            docker compose up -d back
-            
-            # Debug: Check running containers
-            docker compose ps
-            docker ps
-            
-            # Cleanup
+            # Nettoyage
             docker image prune -f
