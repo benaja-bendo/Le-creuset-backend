@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -10,6 +11,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly mailService: MailService,
+    private readonly configService: ConfigService,
   ) {}
 
   @Post('register')
@@ -26,7 +28,10 @@ export class AuthController {
           <li><strong>KBIS:</strong> ${dto.kbisFileUrl}</li>
           <li><strong>Douanes:</strong> ${dto.customsFileUrl}</li>
         </ul>
-        <p>Veuillez vous <a href="http://localhost:5173/login">connecter en tant qu'administrateur</a> pour accepter ou rejeter ce compte.</p>
+        <p>Veuillez vous <a href="${this.configService.get<string>(
+          'FRONTEND_URL',
+          'http://dev.lagrenaille.fr/login',
+        )}">connecter en tant qu'administrateur</a> pour accepter ou rejeter ce compte.</p>
       `,
     });
     return result;

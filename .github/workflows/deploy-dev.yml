@@ -1,9 +1,9 @@
-name: Deploy Back
+name: Deploy Back Dev
 
 on:
   push:
     branches:
-      - main
+      - develop
 
 env:
   REGISTRY: ghcr.io
@@ -33,11 +33,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=back-latest
-
-      - name: Lowercase Repo Name
-        run: |
-          echo "REPO_LC=${GITHUB_REPOSITORY,,}" >>${GITHUB_ENV}
+            type=raw,value=back-dev
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -62,55 +58,57 @@ jobs:
 
       - name: Deploy to VPS
         uses: appleboy/ssh-action@v1.0.3
-        env:
-          ENV_FILE: ${{ secrets.ENV_FILE }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_KEY }}
           passphrase: ${{ secrets.VPS_PASSPHRASE }}
-          envs: ENV_FILE,REPO_LC
+          envs: REPO_LC
           script: |
-            # Création du dossier dédié
-            mkdir -p /opt/apps/backend
-            cd /opt/apps/backend
+            # Vérification des pré-requis
+            APP_DIR="/opt/apps/backend-dev"
+            mkdir -p $APP_DIR
+            cd $APP_DIR
             
             # Login Docker
             echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            
-            # Gestion du fichier .env via le secret ENV_FILE
-            if [ -n "$ENV_FILE" ]; then
-              echo "$ENV_FILE" > .env
-              echo "Updated .env from secrets"
-            else
-              echo "Secret ENV_FILE is empty. Checking for existing .env..."
-              if [ ! -f .env ]; then
-                echo "Error: No .env file found and ENV_FILE secret is empty."
-                exit 1
-              fi
-            fi
 
-            # Création du docker-compose.yml à la volée
+            # Création du docker-compose.yml
             cat <<EOF > docker-compose.yml
             services:
-              api:
-                image: ghcr.io/$REPO_LC:back-latest
-                container_name: lecreuset-api
+              back-dev:
+                image: ghcr.io/$REPO_LC:back-dev
+                container_name: lecreuset-back-dev
                 restart: always
-                env_file: .env
-                environment:
-                  - DATABASE_URL=postgresql://\${POSTGRES_USER}:\${POSTGRES_PASSWORD}@postgres:5432/\${POSTGRES_DB}
                 networks:
-                  - lecreuset_network
+                  - proxy
+                  - db_internal
                 labels:
                   - "traefik.enable=true"
-                  - "traefik.http.routers.api.rule=Host(\`api.lecreuset.benaja-bendo.fr\`)"
-                  - "traefik.http.routers.api.entrypoints=websecure"
-                  - "traefik.http.routers.api.tls.certresolver=myresolver"
-                  - "traefik.http.services.api.loadbalancer.server.port=3000"
-
+                  - "traefik.http.routers.back-dev.rule=Host(\`api.dev.lagrenaille.fr\`)"
+                  - "traefik.http.routers.back-dev.entrypoints=websecure"
+                  - "traefik.http.routers.back-dev.tls.certresolver=myresolver"
+                  - "traefik.http.services.back-dev.loadbalancer.server.port=3000"
+                environment:
+                  NODE_ENV: production
+                  PORT: 3000
+                  # Database connection (Schema DEV)
+                  DATABASE_URL: postgresql://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@postgres:5432/${{ secrets.POSTGRES_DB }}?schema=dev
+                  # MinIO connection (Bucket DEV)
+                  MINIO_ENDPOINT: minio
+                  MINIO_PORT: 9000
+                  MINIO_USE_SSL: false
+                  MINIO_ACCESS_KEY: ${{ secrets.MINIO_ROOT_USER }}
+                  MINIO_SECRET_KEY: ${{ secrets.MINIO_ROOT_PASSWORD }}
+                  MINIO_BUCKET: lecreuset-dev
+                  # Autres
+                  JWT_SECRET: ${{ secrets.JWT_SECRET }}
+                  CORS_ORIGIN: https://dev.lagrenaille.fr
+            
             networks:
-              lecreuset_network:
+              proxy:
+                external: true
+              db_internal:
                 external: true
             EOF
             

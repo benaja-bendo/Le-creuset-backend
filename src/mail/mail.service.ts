@@ -27,10 +27,24 @@ export class MailService {
     const apiKey = this.configService.get<string>('RESEND_API_KEY', '');
     this.resend = apiKey ? new Resend(apiKey) : null;
     this.from = this.configService.get<string>('MAIL_FROM', 'noreply@example.com');
+    
     const host = this.configService.get<string>('SMTP_HOST', '');
     const portStr = this.configService.get<string>('SMTP_PORT', '');
     const port = portStr ? Number(portStr) : 0;
-    this.smtpTransport = host && port ? nodemailer.createTransport({ host, port, secure: false, ignoreTLS: true, tls: { rejectUnauthorized: false } }) : null;
+    const user = this.configService.get<string>('SMTP_USER', '');
+    const pass = this.configService.get<string>('SMTP_PASSWORD', '');
+    const secure = this.configService.get<string>('SMTP_SECURE', 'false') === 'true';
+
+    if (host && port) {
+      this.smtpTransport = nodemailer.createTransport({
+        host,
+        port,
+        secure, // true for 465, false for other ports
+        auth: user && pass ? { user, pass } : undefined,
+      });
+    } else {
+      this.smtpTransport = null;
+    }
   }
 
   /**
