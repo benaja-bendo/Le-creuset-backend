@@ -58,6 +58,16 @@ Ces identifiants doivent correspondre à ceux configurés par Ansible sur le VPS
 
 ### Application
 - `JWT_SECRET` : Clé secrète pour les tokens JWT
+- `ADMIN_EMAIL` : Adresse email de l’administrateur qui reçoit les notifications
+- `MAIL_FROM` : Adresse d’expédition (ex: `"Lagrenaille <contact@lagrenaille.fr>"`)
+- `SMTP_HOST` : Hôte SMTP (ex: `mail.infomaniak.com`)
+- `SMTP_PORT` : Port SMTP (ex: `587`)
+- `SMTP_USER` : Identifiant SMTP
+- `SMTP_PASSWORD` : Mot de passe SMTP
+- `SMTP_SECURE` : `false` pour STARTTLS sur le port 587, `true` pour TLS implicite (465)
+- `RESEND_API_KEY` : Clé API Resend (optionnelle, si tu utilises Resend)
+- `MAIL_FROM` : Adresse d’envoi par défaut
+- `FRONTEND_URL` : URL publique du frontend (ex: `https://lagrenaille.fr` ou `https://dev.lagrenaille.fr`)
 
 ## Architecture & Infrastructure
 

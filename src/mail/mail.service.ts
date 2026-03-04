@@ -141,15 +141,16 @@ export class MailService {
    * Send welcome email to newly activated user
    */
   async sendWelcomeEmail(to: string): Promise<EmailResult> {
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:5173');
     return this.sendEmail({
       to,
       subject: 'Votre compte a été activé',
       html: `
         <h1>Bienvenue</h1>
         <p>Votre compte professionnel a été activé.</p>
-        <p>Vous pouvez vous connecter ici: <a href="http://localhost:5173/login">Se connecter</a></p>
+        <p>Vous pouvez vous connecter ici: <a href="${frontendUrl}/login">Se connecter</a></p>
       `,
-      text: 'Votre compte professionnel a été activé. Connectez-vous: http://localhost:5173/login',
+      text: `Votre compte professionnel a été activé. Connectez-vous: ${frontendUrl}/login`,
     });
   }
 
@@ -162,6 +163,7 @@ export class MailService {
     invoiceNumber: string,
     amount?: number,
   ): Promise<EmailResult> {
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:5173');
     const amountText = amount ? `Montant: ${amount} €` : '';
     
     return this.sendEmail({
@@ -180,7 +182,7 @@ export class MailService {
           </div>
           
           <p>
-            <a href="http://localhost:5173/client/invoices" 
+            <a href="${frontendUrl}/client/invoices" 
                style="display: inline-block; background: #c9a227; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
               Voir ma facture
             </a>
@@ -192,7 +194,7 @@ export class MailService {
           </p>
         </div>
       `,
-      text: `Votre commande #${orderRef} est terminée.\n\nFacture N° ${invoiceNumber}\n${amountText}\n\nConnectez-vous pour télécharger votre facture: http://localhost:5173/client/invoices`,
+      text: `Votre commande #${orderRef} est terminée.\n\nFacture N° ${invoiceNumber}\n${amountText}\n\nConnectez-vous pour télécharger votre facture: ${frontendUrl}/client/invoices`,
     });
   }
 }
