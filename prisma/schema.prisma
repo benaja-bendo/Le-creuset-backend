@@ -35,6 +35,7 @@ model User {
   molds Mold[]
   orders Order[]
   invoices Invoice[]
+  invoiceGroups InvoiceGroup[]
 
   @@map("users")
 }
@@ -95,12 +96,12 @@ enum UserStatus {
   REJECTED
 }
 
-// Comptes poids par métal
+// Comptes poids par métal PUR
 model MetalAccount {
   id         String   @id @default(cuid())
   userId     String   @map("user_id")
   user       User     @relation(fields: [userId], references: [id])
-  metalType  MetalType @map("metal_type")
+  metalType  BaseMetalType @map("metal_type")
   balance    Decimal   @db.Decimal(10, 3)
   lastUpdate DateTime  @default(now()) @map("last_update")
 
@@ -147,14 +148,35 @@ model Order {
   estimatedPrice Decimal?   @map("estimated_price") @db.Decimal(10, 2)
   notes          String?
   materialType   String?    @map("material_type")
-  finishType     String?    @map("finish_type")
   quantity       Int        @default(1)
+  isManualOrder  Boolean    @default(false) @map("is_manual_order")
   createdAt      DateTime   @default(now()) @map("created_at")
   updatedAt      DateTime   @updatedAt @map("updated_at")
 
   invoices       Invoice[]
+  invoiceGroupId String?    @map("invoice_group_id")
+  invoiceGroup   InvoiceGroup? @relation(fields: [invoiceGroupId], references: [id])
 
   @@map("orders")
+  @@index([userId])
+}
+
+// Groupe de facturation (regroupe N commandes sous 1 facture)
+model InvoiceGroup {
+  id            String   @id @default(cuid())
+  userId        String   @map("user_id")
+  user          User     @relation(fields: [userId], references: [id])
+  baseMetalType BaseMetalType? @map("base_metal_type") // métal commun déduit (optionnel)
+  invoiceNumber String   @unique @map("invoice_number")
+  fileUrl       String?  @map("file_url") // PDF facture groupée
+  amount        Decimal? @db.Decimal(10, 2)
+  notes         String?
+  issueDate     DateTime @default(now()) @map("issue_date")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  orders        Order[]  // les commandes du groupe
+
+  @@map("invoice_groups")
   @@index([userId])
 }
 
@@ -177,15 +199,29 @@ model Invoice {
   @@index([orderId])
 }
 
-// Types de métal
+// Métaux de base pour les comptes matières purs
+enum BaseMetalType {
+  OR_FIN
+  ARGENT_FIN
+  PLATINE
+  PALLADIUM
+}
+
+// Alliages et services (pour le Devis/Commande)
 enum MetalType {
   OR_JAUNE_375
   OR_JAUNE_750
+  OR_ROSE_375
   OR_ROSE_750
+  OR_GRIS_375
   OR_GRIS_750
+  OR_GRIS_750_PALLADIE_13
+  OR_ROUGE_750
   PLATINE_950
   PALLADIUM
   ARGENT_925
+  PROTO_VISUEL
+  IMPRESSION_CIRE
 }
 
 // Type de transaction

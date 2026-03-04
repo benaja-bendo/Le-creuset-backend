@@ -1,7 +1,7 @@
 {
   "name": "lecreuset-backend",
   "version": "0.1.0",
-  "description": "Le Creuset Backend API - NestJS with Prisma, MinIO, and Resend",
+  "description": "La Grenaille Backend API - NestJS with Prisma, MinIO, and Resend",
   "author": "",
   "private": true,
   "license": "UNLICENSED",
@@ -29,6 +29,7 @@
     "@nestjs/config": "^3.3.0",
     "@nestjs/core": "^10.4.15",
     "@nestjs/jwt": "^11.0.2",
+    "@nestjs/mapped-types": "*",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^10.4.15",
     "@prisma/client": "^6.1.0",

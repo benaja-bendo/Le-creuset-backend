@@ -33,7 +33,7 @@ export class UsersController {
   async register(@Body() dto: CreateUserDto) {
     const user = await this.usersService.register(dto);
     await this.mailService.sendEmail({
-      to: process.env.ADMIN_EMAIL || 'admin@lecreuset.fr',
+      to: process.env.ADMIN_EMAIL || 'admin@lagrenaille.fr',
       subject: `Nouveau compte en attente : ${dto.companyName ?? dto.email}`,
       html: `
         <h1>Nouvelle inscription à valider</h1>

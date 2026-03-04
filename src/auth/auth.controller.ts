@@ -18,7 +18,7 @@ export class AuthController {
   async register(@Body() dto: RegisterDto) {
     const result = await this.authService.register(dto);
     await this.mailService.sendEmail({
-      to: process.env.ADMIN_EMAIL || 'admin@lecreuset.fr',
+      to: process.env.ADMIN_EMAIL || 'admin@lagrenaille.fr',
       subject: `Validation requise - Nouveau compte : ${dto.companyName}`,
       html: `
         <h1>Nouvelle inscription à valider</h1>

@@ -36,13 +36,28 @@ export class OrdersService {
     });
   }
 
-  async create(data: { userId: string; stlFileUrl?: string; estimatedPrice?: number }) {
+  async create(data: { userId: string; stlFileUrl?: string; estimatedPrice?: number; materialType?: MetalType; notes?: string }) {
     return this.prisma.order.create({
       data: {
         userId: data.userId,
         status: OrderStatus.EN_ATTENTE,
         stlFileUrl: data.stlFileUrl,
         estimatedPrice: data.estimatedPrice,
+        materialType: data.materialType,
+        notes: data.notes,
+      },
+    });
+  }
+
+  async createManual(data: { userId: string; estimatedPrice?: number; materialType?: string; notes?: string }) {
+    return this.prisma.order.create({
+      data: {
+        userId: data.userId,
+        status: OrderStatus.EN_ATTENTE,
+        estimatedPrice: data.estimatedPrice,
+        materialType: data.materialType as MetalType,
+        notes: data.notes,
+        isManualOrder: true,
       },
     });
   }
@@ -108,33 +123,42 @@ export class OrdersService {
         },
       });
 
-      // 3. If debit requested, debit the weight account
-      if (data.debitWeightAccount && data.finalWeight && data.metalType) {
-        const metalType = data.metalType as MetalType;
-        const account = await tx.metalAccount.findFirst({
-          where: { userId: order.userId, metalType },
-        });
+    if (data.debitWeightAccount && data.finalWeight && data.metalType) {
+        // Here we map the order's metal alloy to its base pure metal for the weight account
+        let baseMetal: import('@prisma/client').BaseMetalType | null = null;
+        const mt = data.metalType;
+        
+        if (mt.includes('OR_')) baseMetal = 'OR_FIN';
+        else if (mt.includes('ARGENT_')) baseMetal = 'ARGENT_FIN';
+        else if (mt.includes('PLATINE_')) baseMetal = 'PLATINE';
+        else if (mt.includes('PALLADIUM')) baseMetal = 'PALLADIUM';
 
-        if (account) {
-          // Create debit transaction
-          await tx.transaction.create({
-            data: {
-              accountId: account.id,
-              type: TransactionType.DEBIT,
-              amount: data.finalWeight,
-              label: `Commande #${orderId.slice(-6)} - ${data.invoiceNumber}`,
-              date: new Date(),
-            },
+        if (baseMetal) {
+          const account = await tx.metalAccount.findFirst({
+            where: { userId: order.userId, metalType: baseMetal },
           });
 
-          // Update account balance
-          await tx.metalAccount.update({
-            where: { id: account.id },
-            data: {
-              balance: Number(account.balance) - data.finalWeight,
-              lastUpdate: new Date(),
-            },
-          });
+          if (account) {
+            // Create debit transaction
+            await tx.transaction.create({
+              data: {
+                accountId: account.id,
+                type: TransactionType.DEBIT,
+                amount: data.finalWeight,
+                label: `Commande #${orderId.slice(-6)} - ${data.invoiceNumber}`,
+                date: new Date(),
+              },
+            });
+
+            // Update account balance
+            await tx.metalAccount.update({
+              where: { id: account.id },
+              data: {
+                balance: Number(account.balance) - data.finalWeight,
+                lastUpdate: new Date(),
+              },
+            });
+          }
         }
       }
 

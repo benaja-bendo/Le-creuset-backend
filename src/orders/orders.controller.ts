@@ -28,11 +28,19 @@ export class OrdersController {
   }
 
   @Post()
-  async create(@Req() req: any, @Body() dto: { stlFileUrl?: string; estimatedPrice?: number }) {
+  async create(@Req() req: any, @Body() dto: { stlFileUrl?: string; estimatedPrice?: number; materialType?: string; notes?: string }) {
     return this.ordersService.create({
       userId: req.user.id,
       ...dto,
+      materialType: dto.materialType as any,
     });
+  }
+
+  @Post('manual')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN')
+  async createManual(@Body() dto: { userId: string; estimatedPrice?: number; materialType?: string; notes?: string }) {
+    return this.ordersService.createManual(dto);
   }
 
   @Get()

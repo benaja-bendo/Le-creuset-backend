@@ -107,7 +107,7 @@ export class MailService {
         <p>Nous avons bien reçu votre demande de devis (référence: <strong>${quoteRef}</strong>).</p>
         <p>Vous pouvez suivre l'état de votre demande ici: <a href="${quoteUrl}">${quoteUrl}</a></p>
         <p>Nous reviendrons vers vous rapidement.</p>
-        <p>Cordialement,<br/>L'équipe Le Creuset</p>
+        <p>Cordialement,<br/>L'équipe La Grenaille</p>
       `,
       text: `Demande de devis reçue\n\nRéférence: ${quoteRef}\nSuivi: ${quoteUrl}`,
     });
@@ -121,7 +121,7 @@ export class MailService {
     customerEmail: string,
     fileCount: number,
   ): Promise<EmailResult> {
-    const adminEmail = this.configService.get<string>('ADMIN_EMAIL', 'admin@lecreuset.fr');
+    const adminEmail = this.configService.get<string>('ADMIN_EMAIL', 'admin@lagrenaille.fr');
 
     return this.sendEmail({
       to: adminEmail,
@@ -190,7 +190,7 @@ export class MailService {
           
           <p style="color: #666; font-size: 14px; margin-top: 30px;">
             Merci pour votre confiance.<br/>
-            L'équipe Le Creuset
+            L'équipe La Grenaille
           </p>
         </div>
       `,
