@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { MetalType, TransactionType } from '@prisma/client';
+import { MetalType, BaseMetalType, TransactionType } from '@prisma/client';
 
 @Injectable()
 export class WeightsService {
@@ -43,10 +43,10 @@ export class WeightsService {
    * Initialize accounts for a new user
    */
   async initializeUserAccounts(userId: string) {
-    const metalTypes = Object.values(MetalType);
+    const metalTypes = Object.values(BaseMetalType);
     const data = metalTypes.map((type) => ({
       userId,
-      metalType: type,
+      metalType: type as BaseMetalType,
       balance: 0,
     }));
 
@@ -99,9 +99,9 @@ export class WeightsService {
   }
 
   /**
-   * Find metal account by user ID and metal type
+   * Find metal account by user ID and base metal type
    */
-  async findAccountByUserAndMetal(userId: string, metalType: MetalType) {
+  async findAccountByUserAndMetal(userId: string, metalType: BaseMetalType) {
     return this.prisma.metalAccount.findFirst({
       where: { userId, metalType },
     });

@@ -19,6 +19,8 @@ COPY src ./src
 COPY nest-cli.json tsconfig.json ./
 RUN pnpm prisma:generate
 RUN pnpm build
+# Compile seed separately
+RUN npx tsc --outDir dist-seed --esModuleInterop --module commonjs --target es2020 --resolveJsonModule --skipLibCheck prisma/seed.ts
 
 FROM node:22-alpine AS runner
 WORKDIR /app
@@ -26,6 +28,7 @@ ENV NODE_ENV=production
 RUN corepack enable
 COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
+COPY --from=build /app/dist-seed ./dist-seed
 COPY --from=build /app/prisma ./prisma
 COPY package.json pnpm-lock.yaml ./
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh

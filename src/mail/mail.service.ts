@@ -27,10 +27,24 @@ export class MailService {
     const apiKey = this.configService.get<string>('RESEND_API_KEY', '');
     this.resend = apiKey ? new Resend(apiKey) : null;
     this.from = this.configService.get<string>('MAIL_FROM', 'noreply@example.com');
+    
     const host = this.configService.get<string>('SMTP_HOST', '');
     const portStr = this.configService.get<string>('SMTP_PORT', '');
     const port = portStr ? Number(portStr) : 0;
-    this.smtpTransport = host && port ? nodemailer.createTransport({ host, port, secure: false, ignoreTLS: true, tls: { rejectUnauthorized: false } }) : null;
+    const user = this.configService.get<string>('SMTP_USER', '');
+    const pass = this.configService.get<string>('SMTP_PASSWORD', '');
+    const secure = this.configService.get<string>('SMTP_SECURE', 'false') === 'true';
+
+    if (host && port) {
+      this.smtpTransport = nodemailer.createTransport({
+        host,
+        port,
+        secure, // true for 465, false for other ports
+        auth: user && pass ? { user, pass } : undefined,
+      });
+    } else {
+      this.smtpTransport = null;
+    }
   }
 
   /**
@@ -93,7 +107,7 @@ export class MailService {
         <p>Nous avons bien reçu votre demande de devis (référence: <strong>${quoteRef}</strong>).</p>
         <p>Vous pouvez suivre l'état de votre demande ici: <a href="${quoteUrl}">${quoteUrl}</a></p>
         <p>Nous reviendrons vers vous rapidement.</p>
-        <p>Cordialement,<br/>L'équipe Le Creuset</p>
+        <p>Cordialement,<br/>L'équipe La Grenaille</p>
       `,
       text: `Demande de devis reçue\n\nRéférence: ${quoteRef}\nSuivi: ${quoteUrl}`,
     });
@@ -107,7 +121,7 @@ export class MailService {
     customerEmail: string,
     fileCount: number,
   ): Promise<EmailResult> {
-    const adminEmail = this.configService.get<string>('ADMIN_EMAIL', 'admin@lecreuset.fr');
+    const adminEmail = this.configService.get<string>('ADMIN_EMAIL', 'admin@lagrenaille.fr');
 
     return this.sendEmail({
       to: adminEmail,
@@ -127,15 +141,16 @@ export class MailService {
    * Send welcome email to newly activated user
    */
   async sendWelcomeEmail(to: string): Promise<EmailResult> {
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:5173');
     return this.sendEmail({
       to,
       subject: 'Votre compte a été activé',
       html: `
         <h1>Bienvenue</h1>
         <p>Votre compte professionnel a été activé.</p>
-        <p>Vous pouvez vous connecter ici: <a href="http://localhost:5173/login">Se connecter</a></p>
+        <p>Vous pouvez vous connecter ici: <a href="${frontendUrl}/login">Se connecter</a></p>
       `,
-      text: 'Votre compte professionnel a été activé. Connectez-vous: http://localhost:5173/login',
+      text: `Votre compte professionnel a été activé. Connectez-vous: ${frontendUrl}/login`,
     });
   }
 
@@ -148,6 +163,7 @@ export class MailService {
     invoiceNumber: string,
     amount?: number,
   ): Promise<EmailResult> {
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:5173');
     const amountText = amount ? `Montant: ${amount} €` : '';
     
     return this.sendEmail({
@@ -166,7 +182,7 @@ export class MailService {
           </div>
           
           <p>
-            <a href="http://localhost:5173/client/invoices" 
+            <a href="${frontendUrl}/client/invoices" 
                style="display: inline-block; background: #c9a227; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
               Voir ma facture
             </a>
@@ -174,11 +190,11 @@ export class MailService {
           
           <p style="color: #666; font-size: 14px; margin-top: 30px;">
             Merci pour votre confiance.<br/>
-            L'équipe Le Creuset
+            L'équipe La Grenaille
           </p>
         </div>
       `,
-      text: `Votre commande #${orderRef} est terminée.\n\nFacture N° ${invoiceNumber}\n${amountText}\n\nConnectez-vous pour télécharger votre facture: http://localhost:5173/client/invoices`,
+      text: `Votre commande #${orderRef} est terminée.\n\nFacture N° ${invoiceNumber}\n${amountText}\n\nConnectez-vous pour télécharger votre facture: ${frontendUrl}/client/invoices`,
     });
   }
 }
