@@ -121,7 +121,7 @@ export class MailService {
     customerEmail: string,
     fileCount: number,
   ): Promise<EmailResult> {
-    const adminEmail = this.configService.get<string>('ADMIN_EMAIL', 'admin@lagrenaille.fr');
+    const adminEmail = this.configService.get<string>('ADMIN_EMAIL', 'contact@lagrenaille.fr');
 
     return this.sendEmail({
       to: adminEmail,
