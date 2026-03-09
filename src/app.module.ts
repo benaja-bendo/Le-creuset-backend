@@ -13,6 +13,7 @@ import { WeightsModule } from './weights/weights.module';
 import { MoldsModule } from './molds/molds.module';
 import { OrdersModule } from './orders/orders.module';
 import { InvoicesModule } from './invoices/invoices.module';
+import { InvoiceGroupsModule } from './invoice-groups/invoice-groups.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { InvoicesModule } from './invoices/invoices.module';
     MoldsModule,
     OrdersModule,
     InvoicesModule,
+    InvoiceGroupsModule,
   ],
   controllers: [HealthController],
   providers: [
