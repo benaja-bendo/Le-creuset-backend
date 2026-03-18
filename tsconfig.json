@@ -7,6 +7,8 @@
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
     "target": "ES2022",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
     "sourceMap": true,
     "outDir": "./dist",
     "baseUrl": "./",
@@ -24,8 +26,10 @@
       "@prisma/*": ["src/prisma/*"],
       "@storage/*": ["src/storage/*"],
       "@mail/*": ["src/mail/*"]
-    }
+    },
+    "types": ["node", "jest", "multer"],
+    "typeRoots": ["./node_modules/@types"]
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*.ts", "prisma/**/*.ts", "test/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

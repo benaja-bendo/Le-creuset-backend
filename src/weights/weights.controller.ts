@@ -1,11 +1,19 @@
-import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
-import { WeightsService } from './weights.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
-import { TransactionType } from '@prisma/client';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Req,
+  UseGuards,
+} from "@nestjs/common";
+import { WeightsService } from "./weights.service";
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { RolesGuard } from "../auth/roles.guard";
+import { Roles } from "../auth/roles.decorator";
+import { TransactionType } from "@prisma/client";
 
-@Controller('weights')
+@Controller("weights")
 @UseGuards(JwtAuthGuard)
 export class WeightsController {
   constructor(private readonly weightsService: WeightsService) {}
@@ -13,7 +21,7 @@ export class WeightsController {
   /**
    * Return metal accounts for the logged-in user
    */
-  @Get('me')
+  @Get("me")
   async getMyWeights(@Req() req: any) {
     return this.weightsService.getUserAccounts(req.user.id);
   }
@@ -21,32 +29,38 @@ export class WeightsController {
   /**
    * Admin: view all metal accounts
    */
-  @Get('all')
+  @Get("all")
   @UseGuards(RolesGuard)
-  @Roles('ADMIN')
+  @Roles("ADMIN")
   async getAllWeights() {
     return this.weightsService.getAllAccounts();
   }
-  
+
   /**
    * Admin: view metal accounts for a specific user
    */
-  @Get('user/:userId')
+  @Get("user/:userId")
   @UseGuards(RolesGuard)
-  @Roles('ADMIN')
-  async getUserWeights(@Param('userId') userId: string) {
+  @Roles("ADMIN")
+  async getUserWeights(@Param("userId") userId: string) {
     return this.weightsService.getUserAccounts(userId);
   }
 
   /**
    * Admin: add a transaction to an account
    */
-  @Post(':id/transaction')
+  @Post(":id/transaction")
   @UseGuards(RolesGuard)
-  @Roles('ADMIN')
+  @Roles("ADMIN")
   async addTransaction(
-    @Param('id') id: string,
-    @Body() dto: { type: TransactionType; amount: number; label: string; date?: string }
+    @Param("id") id: string,
+    @Body()
+    dto: {
+      type: TransactionType;
+      amount: number;
+      label: string;
+      date?: string;
+    },
   ) {
     return this.weightsService.addTransaction(id, {
       ...dto,

@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { OrderStatus, TransactionType, MetalType } from '@prisma/client';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
+import { OrderStatus, TransactionType, MetalType } from "@prisma/client";
 
 @Injectable()
 export class OrdersService {
@@ -9,7 +9,7 @@ export class OrdersService {
   async findByUser(userId: string) {
     return this.prisma.order.findMany({
       where: { userId },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       include: {
         invoices: {
           select: { id: true, invoiceNumber: true },
@@ -32,11 +32,17 @@ export class OrdersService {
           select: { id: true, invoiceNumber: true },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
   }
 
-  async create(data: { userId: string; stlFileUrl?: string; estimatedPrice?: number; materialType?: MetalType; notes?: string }) {
+  async create(data: {
+    userId: string;
+    stlFileUrl?: string;
+    estimatedPrice?: number;
+    materialType?: MetalType;
+    notes?: string;
+  }) {
     return this.prisma.order.create({
       data: {
         userId: data.userId,
@@ -49,7 +55,12 @@ export class OrdersService {
     });
   }
 
-  async createManual(data: { userId: string; estimatedPrice?: number; materialType?: string; notes?: string }) {
+  async createManual(data: {
+    userId: string;
+    estimatedPrice?: number;
+    materialType?: string;
+    notes?: string;
+  }) {
     return this.prisma.order.create({
       data: {
         userId: data.userId,
@@ -64,7 +75,7 @@ export class OrdersService {
 
   async updateStatus(id: string, status: OrderStatus) {
     const order = await this.prisma.order.findUnique({ where: { id } });
-    if (!order) throw new NotFoundException('Commande non trouvée');
+    if (!order) throw new NotFoundException("Commande non trouvée");
 
     return this.prisma.order.update({
       where: { id },
@@ -75,31 +86,57 @@ export class OrdersService {
   async findById(id: string) {
     return this.prisma.order.findUnique({
       where: { id },
-      include: { 
+      include: {
         user: true,
         invoices: true,
       },
     });
   }
 
+  async update(
+    id: string,
+    data: { materialType?: MetalType; notes?: string; stlFileUrl?: string },
+  ) {
+    const order = await this.prisma.order.findUnique({ where: { id } });
+    if (!order) throw new NotFoundException("Commande non trouvée");
+
+    return this.prisma.order.update({
+      where: { id },
+      data,
+    });
+  }
+
+  async delete(id: string) {
+    const order = await this.prisma.order.findUnique({ where: { id } });
+    if (!order) throw new NotFoundException("Commande non trouvée");
+
+    // Delete related invoices first
+    await this.prisma.invoice.deleteMany({ where: { orderId: id } });
+
+    return this.prisma.order.delete({ where: { id } });
+  }
+
   /**
    * Close an order: create invoice, update status, optionally debit weight account
    * Returns the order and invoice for notification handling in controller
    */
-  async closeOrder(orderId: string, data: {
-    invoiceNumber: string;
-    invoiceFileUrl: string;
-    finalAmount?: number;
-    finalWeight?: number;
-    debitWeightAccount?: boolean;
-    metalType?: string;
-  }) {
+  async closeOrder(
+    orderId: string,
+    data: {
+      invoiceNumber: string;
+      invoiceFileUrl: string;
+      finalAmount?: number;
+      finalWeight?: number;
+      debitWeightAccount?: boolean;
+      metalType?: string;
+    },
+  ) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       include: { user: true },
     });
 
-    if (!order) throw new NotFoundException('Commande non trouvée');
+    if (!order) throw new NotFoundException("Commande non trouvée");
 
     return this.prisma.$transaction(async (tx) => {
       // 1. Create the invoice
@@ -117,21 +154,21 @@ export class OrdersService {
       // 2. Update order status to EXPEDIE
       const updatedOrder = await tx.order.update({
         where: { id: orderId },
-        data: { 
+        data: {
           status: OrderStatus.EXPEDIE,
           estimatedPrice: data.finalAmount,
         },
       });
 
-    if (data.debitWeightAccount && data.finalWeight && data.metalType) {
+      if (data.debitWeightAccount && data.finalWeight && data.metalType) {
         // Here we map the order's metal alloy to its base pure metal for the weight account
-        let baseMetal: import('@prisma/client').BaseMetalType | null = null;
+        let baseMetal: import("@prisma/client").BaseMetalType | null = null;
         const mt = data.metalType;
-        
-        if (mt.includes('OR_')) baseMetal = 'OR_FIN';
-        else if (mt.includes('ARGENT_')) baseMetal = 'ARGENT_FIN';
-        else if (mt.includes('PLATINE_')) baseMetal = 'PLATINE';
-        else if (mt.includes('PALLADIUM')) baseMetal = 'PALLADIUM';
+
+        if (mt.includes("OR_")) baseMetal = "OR_FIN";
+        else if (mt.includes("ARGENT_")) baseMetal = "ARGENT_FIN";
+        else if (mt.includes("PLATINE_")) baseMetal = "PLATINE";
+        else if (mt.includes("PALLADIUM")) baseMetal = "PALLADIUM";
 
         if (baseMetal) {
           const account = await tx.metalAccount.findFirst({

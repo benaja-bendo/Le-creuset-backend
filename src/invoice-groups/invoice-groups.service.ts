@@ -1,7 +1,11 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { CreateInvoiceGroupDto } from './dto/create-invoice-group.dto';
-import { UpdateInvoiceGroupDto } from './dto/update-invoice-group.dto';
-import { PrismaService } from '../prisma/prisma.service';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from "@nestjs/common";
+import { CreateInvoiceGroupDto } from "./dto/create-invoice-group.dto";
+import { UpdateInvoiceGroupDto } from "./dto/update-invoice-group.dto";
+import { PrismaService } from "../prisma/prisma.service";
 
 @Injectable()
 export class InvoiceGroupsService {
@@ -18,12 +22,16 @@ export class InvoiceGroupsService {
       });
 
       if (orders.length !== dto.orderIds.length) {
-        throw new BadRequestException('Certaines commandes sont introuvables ou ne vous appartiennent pas.');
+        throw new BadRequestException(
+          "Certaines commandes sont introuvables ou ne vous appartiennent pas.",
+        );
       }
 
-      const alreadyGrouped = orders.filter(o => o.invoiceGroupId !== null);
+      const alreadyGrouped = orders.filter((o) => o.invoiceGroupId !== null);
       if (alreadyGrouped.length > 0) {
-        throw new BadRequestException('Certaines commandes font déjà partie d\'un groupe de facturation.');
+        throw new BadRequestException(
+          "Certaines commandes font déjà partie d'un groupe de facturation.",
+        );
       }
 
       // 2. Create the invoice group
@@ -57,7 +65,7 @@ export class InvoiceGroupsService {
         user: { select: { companyName: true, email: true } },
         orders: true,
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
   }
 
@@ -69,7 +77,7 @@ export class InvoiceGroupsService {
         user: true,
       },
     });
-    if (!group) throw new NotFoundException('Groupe introuvable');
+    if (!group) throw new NotFoundException("Groupe introuvable");
     return group;
   }
 

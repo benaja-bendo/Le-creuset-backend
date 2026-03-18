@@ -1,5 +1,5 @@
-import { z } from 'zod';
-import { createZodDto } from 'nestjs-zod';
+import { z } from "zod";
+import { createZodDto } from "nestjs-zod";
 
 export const LoginSchema = z.object({
   email: z.string().email(),
@@ -7,4 +7,3 @@ export const LoginSchema = z.object({
 });
 
 export class LoginDto extends createZodDto(LoginSchema) {}
-

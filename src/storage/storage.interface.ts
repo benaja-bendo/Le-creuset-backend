@@ -1,4 +1,4 @@
-import { Readable } from 'stream';
+import { Readable } from "stream";
 
 /**
  * Interface abstraite pour les drivers de stockage.
@@ -53,4 +53,4 @@ export interface FileStats {
   lastModified?: Date;
 }
 
-export const STORAGE_DRIVER = 'STORAGE_DRIVER';
+export const STORAGE_DRIVER = "STORAGE_DRIVER";

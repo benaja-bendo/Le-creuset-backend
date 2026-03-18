@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { CreateInvoiceDto } from './dto/create-invoice.dto';
+import { Injectable } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
+import { CreateInvoiceDto } from "./dto/create-invoice.dto";
 
 @Injectable()
 export class InvoicesService {
@@ -11,7 +11,7 @@ export class InvoicesService {
    */
   async findAll() {
     return this.prisma.invoice.findMany({
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       include: {
         order: {
           select: {
@@ -37,7 +37,7 @@ export class InvoicesService {
   async findByUserId(userId: string) {
     return this.prisma.invoice.findMany({
       where: { userId },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       include: {
         order: {
           select: {
@@ -77,7 +77,7 @@ export class InvoicesService {
   async findByOrderId(orderId: string) {
     return this.prisma.invoice.findMany({
       where: { orderId },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
   }
 

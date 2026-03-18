@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { MetalType, BaseMetalType, TransactionType } from '@prisma/client';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
+import { MetalType, BaseMetalType, TransactionType } from "@prisma/client";
 
 @Injectable()
 export class WeightsService {
@@ -15,7 +15,7 @@ export class WeightsService {
       include: {
         transactions: {
           take: 10,
-          orderBy: { date: 'desc' },
+          orderBy: { date: "desc" },
         },
       },
     });
@@ -35,7 +35,7 @@ export class WeightsService {
           },
         },
       },
-      orderBy: { balance: 'asc' }, // Shows negative balances first (clients who owe metal)
+      orderBy: { balance: "asc" }, // Shows negative balances first (clients who owe metal)
     });
   }
 
@@ -58,22 +58,26 @@ export class WeightsService {
   /**
    * Add a transaction to a metal account and update its balance
    */
-  async addTransaction(accountId: string, data: {
-    type: TransactionType;
-    amount: number;
-    label: string;
-    date?: Date;
-  }) {
+  async addTransaction(
+    accountId: string,
+    data: {
+      type: TransactionType;
+      amount: number;
+      label: string;
+      date?: Date;
+    },
+  ) {
     const account = await this.prisma.metalAccount.findUnique({
       where: { id: accountId },
     });
 
-    if (!account) throw new NotFoundException('Compte métal non trouvé');
+    if (!account) throw new NotFoundException("Compte métal non trouvé");
 
     const amount = Number(data.amount);
-    const newBalance = data.type === TransactionType.CREDIT 
-      ? Number(account.balance) + amount
-      : Number(account.balance) - amount;
+    const newBalance =
+      data.type === TransactionType.CREDIT
+        ? Number(account.balance) + amount
+        : Number(account.balance) - amount;
 
     return this.prisma.$transaction(async (tx) => {
       // Create transaction record
