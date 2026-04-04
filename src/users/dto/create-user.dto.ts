@@ -15,11 +15,9 @@ const filePathOrUrl = z
 export const CreateUserSchema = z.object({
   email: z.string().email({ message: "Email invalide" }),
   name: z.string().optional(),
-  companyName: z
-    .string()
-    .min(2, {
-      message: "Le nom de l'entreprise doit contenir au moins 2 caractères",
-    }),
+  companyName: z.string().min(2, {
+    message: "Le nom de l'entreprise doit contenir au moins 2 caractères",
+  }),
   phone: z.string().min(6, { message: "Numéro de téléphone invalide" }),
   address: z.string().min(6, { message: "Adresse trop courte" }),
   kbisFileUrl: filePathOrUrl,
