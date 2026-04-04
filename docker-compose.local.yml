@@ -28,32 +28,32 @@ services:
     networks:
       - internal
 
-  api:
-    image: node:22-alpine
-    container_name: lecreuset-back-local
-    working_dir: /app
-    volumes:
-      - .:/app
-    ports:
-      - "3000:3000"
-    environment:
-      NODE_ENV: development
-      DATABASE_URL: postgresql://lecreuset:lecreuset_secret@postgres:5432/lecreuset?schema=public
-      MINIO_ENDPOINT: minio
-      MINIO_PORT: 9000
-      MINIO_USE_SSL: false
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: minioadmin123
-      MINIO_BUCKET: lecreuset-local
-      JWT_SECRET: super-secret-key-dev
-      CORS_ORIGIN: "http://localhost:5173"
-      PORT: 3000
-    command: sh -c "npm install && npm run start:dev"
-    depends_on:
-      - postgres
-      - minio
-    networks:
-      - internal
+  # api:
+  #   image: node:22-alpine
+  #   container_name: lecreuset-back-local
+  #   working_dir: /app
+  #   volumes:
+  #     - .:/app
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     NODE_ENV: development
+  #     DATABASE_URL: postgresql://lecreuset:lecreuset_secret@postgres:5432/lecreuset?schema=public
+  #     MINIO_ENDPOINT: minio
+  #     MINIO_PORT: 9000
+  #     MINIO_USE_SSL: false
+  #     MINIO_ACCESS_KEY: minioadmin
+  #     MINIO_SECRET_KEY: minioadmin123
+  #     MINIO_BUCKET: lecreuset-local
+  #     JWT_SECRET: super-secret-key-dev
+  #     CORS_ORIGIN: "http://localhost:5173"
+  #     PORT: 3000
+  #   command: sh -c "npm install && npm run start:dev"
+  #   depends_on:
+  #     - postgres
+  #     - minio
+  #   networks:
+  #     - internal
 
 volumes:
   postgres_data:

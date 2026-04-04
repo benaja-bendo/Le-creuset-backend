@@ -16,7 +16,7 @@ FROM deps AS build
 WORKDIR /app
 COPY prisma ./prisma
 COPY src ./src
-COPY nest-cli.json tsconfig.json ./
+COPY nest-cli.json tsconfig*.json ./
 RUN pnpm prisma:generate
 RUN pnpm build
 # Compile seed separately

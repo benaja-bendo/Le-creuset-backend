@@ -89,6 +89,12 @@ jobs:
                   - "traefik.http.routers.back-prod.entrypoints=websecure"
                   - "traefik.http.routers.back-prod.tls.certresolver=myresolver"
                   - "traefik.http.services.back-prod.loadbalancer.server.port=3000"
+                healthcheck:
+                  test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+                  interval: 10s
+                  timeout: 5s
+                  retries: 5
+                  start_period: 30s
                 environment:
                   NODE_ENV: production
                   PORT: 3000
