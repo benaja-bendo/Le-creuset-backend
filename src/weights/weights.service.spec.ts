@@ -30,7 +30,7 @@ describe("WeightsService", () => {
 
       expect(prisma.metalAccount.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { userId: "user-1" },
+          where: expect.objectContaining({ userId: "user-1" }),
           include: expect.objectContaining({
             transactions: expect.objectContaining({ take: 10 }),
           }),
@@ -55,8 +55,8 @@ describe("WeightsService", () => {
   });
 
   describe("initializeUserAccounts", () => {
-    it("should create 4 metal accounts for a user", async () => {
-      prisma.metalAccount.createMany.mockResolvedValue({ count: 4 });
+    it("should create the 3 active metal accounts (no Palladium) for a user", async () => {
+      prisma.metalAccount.createMany.mockResolvedValue({ count: 3 });
 
       const result = await service.initializeUserAccounts("user-1");
 
@@ -66,11 +66,10 @@ describe("WeightsService", () => {
             expect.objectContaining({ metalType: "OR_FIN", balance: 0 }),
             expect.objectContaining({ metalType: "ARGENT_FIN", balance: 0 }),
             expect.objectContaining({ metalType: "PLATINE", balance: 0 }),
-            expect.objectContaining({ metalType: "PALLADIUM", balance: 0 }),
           ]),
         }),
       );
-      expect(result).toEqual({ count: 4 });
+      expect(result).toEqual({ count: 3 });
     });
   });
 

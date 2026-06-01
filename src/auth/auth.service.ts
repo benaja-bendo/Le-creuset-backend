@@ -74,6 +74,11 @@ export class AuthService {
       if (user.status === "REJECTED") {
         throw new ForbiddenException("Compte rejeté");
       }
+      if (user.status === "SUSPENDED") {
+        throw new ForbiddenException(
+          "Compte désactivé. Veuillez contacter La Grenaille.",
+        );
+      }
 
       const payload = {
         sub: user.id,

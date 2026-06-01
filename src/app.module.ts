@@ -14,6 +14,7 @@ import { MoldsModule } from "./molds/molds.module";
 import { OrdersModule } from "./orders/orders.module";
 import { InvoicesModule } from "./invoices/invoices.module";
 import { InvoiceGroupsModule } from "./invoice-groups/invoice-groups.module";
+import { LibraryModule } from "./library/library.module";
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { InvoiceGroupsModule } from "./invoice-groups/invoice-groups.module";
     OrdersModule,
     InvoicesModule,
     InvoiceGroupsModule,
+    LibraryModule,
   ],
   controllers: [HealthController],
   providers: [

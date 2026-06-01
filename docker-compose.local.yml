@@ -1,11 +1,11 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: lecreuset-back-postgres
+    container_name: lagrenaille-back
     environment:
-      POSTGRES_USER: lecreuset
-      POSTGRES_PASSWORD: lecreuset_secret
-      POSTGRES_DB: lecreuset
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: lagrenaille-db
     ports:
       - "5433:5432"
     volumes:
@@ -15,11 +15,11 @@ services:
 
   minio:
     image: quay.io/minio/minio:latest
-    container_name: lecreuset-back-minio
+    container_name: lagrenaille-minio
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin123
+      MINIO_ROOT_USER: root
+      MINIO_ROOT_PASSWORD: password
     ports:
       - "9002:9000"
       - "9003:9001"

@@ -136,6 +136,7 @@ export function createMockWeightsService() {
     getAllAccounts: jest.fn().mockResolvedValue([]),
     initializeUserAccounts: jest.fn().mockResolvedValue({ count: 4 }),
     addTransaction: jest.fn().mockResolvedValue({}),
+    addTransactionByUserMetal: jest.fn().mockResolvedValue({}),
     findAccountByUserAndMetal: jest.fn().mockResolvedValue(null),
   };
 }

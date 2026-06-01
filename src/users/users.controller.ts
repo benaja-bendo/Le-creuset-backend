@@ -117,14 +117,23 @@ export class UsersController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("ADMIN")
   async updateStatus(@Param("id") id: string, @Body() dto: UpdateStatusDto) {
+    const before = await this.usersService.findById(id);
     await this.usersService.updateStatus(id, dto.status);
     if (dto.status === "ACTIVE") {
       const u = await this.usersService.findById(id);
-      if (u?.email) await this.mailService.sendWelcomeEmail(u.email);
+      // Email de bienvenue uniquement lors d'une première validation,
+      // pas lors d'une réactivation d'un compte suspendu.
+      if (u?.email && before?.status === "PENDING") {
+        await this.mailService.sendWelcomeEmail(u.email);
+      }
       return { id, status: "ACTIVE" };
     }
     if (dto.status === "REJECTED") {
-      return { id, status: "REJECTED", deleted: true };
+      const deleted = before?.status === "PENDING";
+      return { id, status: "REJECTED", deleted };
+    }
+    if (dto.status === "SUSPENDED") {
+      return { id, status: "SUSPENDED" };
     }
     return { id, status: "PENDING" };
   }

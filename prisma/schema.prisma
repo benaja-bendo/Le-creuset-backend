@@ -36,6 +36,7 @@ model User {
   orders Order[]
   invoices Invoice[]
   invoiceGroups InvoiceGroup[]
+  libraryFiles LibraryFile[]
 
   @@map("users")
 }
@@ -94,6 +95,7 @@ enum UserStatus {
   PENDING
   ACTIVE
   REJECTED
+  SUSPENDED
 }
 
 // Comptes poids par métal PUR
@@ -133,8 +135,25 @@ model Mold {
   reference String
   name      String
   photoUrl  String?  @map("photo_url")
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@map("molds")
+  @@index([userId])
+}
+
+// Bibliothèque de fichiers STL clients (déposés par l'admin)
+model LibraryFile {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id])
+  name      String
+  reference String?
+  fileUrl   String   @map("file_url")
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("library_files")
   @@index([userId])
 }
 
@@ -184,8 +203,8 @@ model InvoiceGroup {
 model Invoice {
   id            String   @id @default(cuid())
   invoiceNumber String   @unique @map("invoice_number")
-  orderId       String   @map("order_id")
-  order         Order    @relation(fields: [orderId], references: [id])
+  orderId       String?  @map("order_id")
+  order         Order?   @relation(fields: [orderId], references: [id])
   userId        String   @map("user_id")
   user          User     @relation(fields: [userId], references: [id])
   fileUrl       String   @map("file_url")

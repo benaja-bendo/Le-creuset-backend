@@ -1,10 +1,15 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateInvoiceDto } from "./dto/create-invoice.dto";
+import { WeightsService } from "../weights/weights.service";
+import { BaseMetalType, TransactionType } from "@prisma/client";
 
 @Injectable()
 export class InvoicesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly weightsService: WeightsService,
+  ) {}
 
   /**
    * Get all invoices (admin)
@@ -85,10 +90,10 @@ export class InvoicesService {
    * Create a new invoice (admin)
    */
   async create(dto: CreateInvoiceDto) {
-    return this.prisma.invoice.create({
+    const invoice = await this.prisma.invoice.create({
       data: {
         invoiceNumber: dto.invoiceNumber,
-        orderId: dto.orderId,
+        orderId: dto.orderId || null,
         userId: dto.userId,
         fileUrl: dto.fileUrl,
         amount: dto.amount,
@@ -111,6 +116,22 @@ export class InvoicesService {
         },
       },
     });
+
+    // Transaction métal optionnelle jointe à la facture (ex: dépôt métal)
+    if (dto.metalType && dto.metalWeight) {
+      await this.weightsService.addTransactionByUserMetal(
+        dto.userId,
+        dto.metalType as BaseMetalType,
+        {
+          type: (dto.metalTransactionType as TransactionType) ?? "CREDIT",
+          amount: dto.metalWeight,
+          label: `Facture ${dto.invoiceNumber}`,
+          date: dto.issueDate ? new Date(dto.issueDate) : new Date(),
+        },
+      );
+    }
+
+    return invoice;
   }
 
   /**

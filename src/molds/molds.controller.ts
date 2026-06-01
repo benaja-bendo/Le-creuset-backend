@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   Req,
   UseGuards,
@@ -40,9 +41,26 @@ export class MoldsController {
       reference: string;
       name: string;
       photoUrl?: string;
+      notes?: string;
     },
   ) {
     return this.moldsService.create(dto);
+  }
+
+  @Patch(":id")
+  @UseGuards(RolesGuard)
+  @Roles("ADMIN")
+  async update(
+    @Param("id") id: string,
+    @Body()
+    dto: {
+      reference?: string;
+      name?: string;
+      photoUrl?: string;
+      notes?: string;
+    },
+  ) {
+    return this.moldsService.update(id, dto);
   }
 
   @Delete(":id")
