@@ -1,7 +1,12 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { InvoicesService } from "./invoices.service";
 import { PrismaService } from "../prisma/prisma.service";
-import { createMockPrismaService, fakeInvoice } from "../common/test-utils";
+import { WeightsService } from "../weights/weights.service";
+import {
+  createMockPrismaService,
+  createMockWeightsService,
+  fakeInvoice,
+} from "../common/test-utils";
 
 describe("InvoicesService", () => {
   let service: InvoicesService;
@@ -14,6 +19,7 @@ describe("InvoicesService", () => {
       providers: [
         InvoicesService,
         { provide: PrismaService, useValue: prisma },
+        { provide: WeightsService, useValue: createMockWeightsService() },
       ],
     }).compile();
 

@@ -113,7 +113,9 @@ describe("UsersController", () => {
   });
 
   describe("PATCH /:id/status", () => {
-    it("should activate user and send welcome email", async () => {
+    it("should activate a pending user and send welcome email", async () => {
+      usersService.findById.mockResolvedValue(fakeUser({ status: "PENDING" }));
+
       const result = await controller.updateStatus("user-1", {
         status: "ACTIVE" as any,
       });
@@ -127,7 +129,9 @@ describe("UsersController", () => {
       expect(result).toEqual({ id: "user-1", status: "ACTIVE" });
     });
 
-    it("should return deleted flag when rejecting", async () => {
+    it("should return deleted flag when rejecting a pending request", async () => {
+      usersService.findById.mockResolvedValue(fakeUser({ status: "PENDING" }));
+
       const result = await controller.updateStatus("user-1", {
         status: "REJECTED" as any,
       });
@@ -137,6 +141,20 @@ describe("UsersController", () => {
         status: "REJECTED",
         deleted: true,
       });
+    });
+
+    it("should suspend an active user without deleting", async () => {
+      usersService.findById.mockResolvedValue(fakeUser({ status: "ACTIVE" }));
+
+      const result = await controller.updateStatus("user-1", {
+        status: "SUSPENDED" as any,
+      });
+
+      expect(usersService.updateStatus).toHaveBeenCalledWith(
+        "user-1",
+        "SUSPENDED",
+      );
+      expect(result).toEqual({ id: "user-1", status: "SUSPENDED" });
     });
   });
 

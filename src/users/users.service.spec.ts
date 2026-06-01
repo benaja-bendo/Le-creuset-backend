@@ -110,9 +110,10 @@ describe("UsersService", () => {
   /* ================================================================ */
 
   describe("updateStatus", () => {
-    it("should update status to ACTIVE and initialize weight accounts", async () => {
+    it("should update status to ACTIVE and initialize weight accounts when none exist", async () => {
       const user = fakeUser({ status: "ACTIVE" });
       prisma.user.update.mockResolvedValue(user);
+      prisma.metalAccount.count.mockResolvedValue(0);
 
       const result = await service.updateStatus("user-1", "ACTIVE" as any);
 
@@ -126,7 +127,8 @@ describe("UsersService", () => {
       expect(result).toEqual(user);
     });
 
-    it("should delete user when status is REJECTED", async () => {
+    it("should delete user when a PENDING request is REJECTED", async () => {
+      prisma.user.findUnique.mockResolvedValue(fakeUser({ status: "PENDING" }));
       prisma.user.delete.mockResolvedValue(fakeUser({ status: "REJECTED" }));
 
       await service.updateStatus("user-1", "REJECTED" as any);

@@ -32,8 +32,24 @@ export class MoldsService {
     reference: string;
     name: string;
     photoUrl?: string;
+    notes?: string;
   }) {
     return this.prisma.mold.create({
+      data,
+    });
+  }
+
+  async update(
+    id: string,
+    data: {
+      reference?: string;
+      name?: string;
+      photoUrl?: string;
+      notes?: string;
+    },
+  ) {
+    return this.prisma.mold.update({
+      where: { id },
       data,
     });
   }

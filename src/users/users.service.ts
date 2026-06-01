@@ -69,8 +69,13 @@ export class UsersService {
   }
 
   async updateStatus(id: string, status: UserStatus) {
+    // Le rejet d'une demande en attente supprime le compte (aucune donnée liée).
+    // La désactivation d'un compte actif se fait via le statut SUSPENDED (soft).
     if (status === "REJECTED") {
-      return this.prisma.user.delete({ where: { id } });
+      const target = await this.prisma.user.findUnique({ where: { id } });
+      if (target?.status === "PENDING") {
+        return this.prisma.user.delete({ where: { id } });
+      }
     }
 
     const user = await this.prisma.user.update({
@@ -78,8 +83,15 @@ export class UsersService {
       data: { status },
     });
 
+    // On (ré)initialise les comptes poids uniquement s'ils n'existent pas encore,
+    // pour ne pas dupliquer lors de la réactivation d'un compte suspendu.
     if (status === "ACTIVE") {
-      await this.weightsService.initializeUserAccounts(id);
+      const existing = await this.prisma.metalAccount.count({
+        where: { userId: id },
+      });
+      if (existing === 0) {
+        await this.weightsService.initializeUserAccounts(id);
+      }
     }
 
     return user;

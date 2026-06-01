@@ -2,6 +2,15 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { BaseMetalType, TransactionType } from "@prisma/client";
 
+// Métaux purs gérés sur les comptes poids.
+// Le Palladium a été retiré de la liste à la demande du client : on n'initialise
+// plus de compte Palladium et on masque les éventuels comptes existants.
+export const ACTIVE_BASE_METALS: BaseMetalType[] = [
+  BaseMetalType.OR_FIN,
+  BaseMetalType.ARGENT_FIN,
+  BaseMetalType.PLATINE,
+];
+
 @Injectable()
 export class WeightsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -11,7 +20,7 @@ export class WeightsService {
    */
   async getUserAccounts(userId: string) {
     return this.prisma.metalAccount.findMany({
-      where: { userId },
+      where: { userId, metalType: { in: ACTIVE_BASE_METALS } },
       include: {
         transactions: {
           take: 10,
@@ -26,6 +35,7 @@ export class WeightsService {
    */
   async getAllAccounts() {
     return this.prisma.metalAccount.findMany({
+      where: { metalType: { in: ACTIVE_BASE_METALS } },
       include: {
         user: {
           select: {
@@ -43,16 +53,43 @@ export class WeightsService {
    * Initialize accounts for a new user
    */
   async initializeUserAccounts(userId: string) {
-    const metalTypes = Object.values(BaseMetalType);
-    const data = metalTypes.map((type) => ({
+    const data = ACTIVE_BASE_METALS.map((type) => ({
       userId,
-      metalType: type as BaseMetalType,
+      metalType: type,
       balance: 0,
     }));
 
     return this.prisma.metalAccount.createMany({
       data,
+      skipDuplicates: true,
     });
+  }
+
+  /**
+   * Ajoute un mouvement sur le compte (userId + métal de base), en créant le
+   * compte si nécessaire. Utilisé notamment lors du dépôt d'une facture / dépôt métal.
+   */
+  async addTransactionByUserMetal(
+    userId: string,
+    metalType: BaseMetalType,
+    data: {
+      type: TransactionType;
+      amount: number;
+      label: string;
+      date?: Date;
+    },
+  ) {
+    let account = await this.prisma.metalAccount.findFirst({
+      where: { userId, metalType },
+    });
+
+    if (!account) {
+      account = await this.prisma.metalAccount.create({
+        data: { userId, metalType, balance: 0 },
+      });
+    }
+
+    return this.addTransaction(account.id, data);
   }
 
   /**
