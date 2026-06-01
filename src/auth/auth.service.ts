@@ -15,9 +15,20 @@ function hashPassword(password: string, salt: string): string {
 }
 
 function verifyPassword(password: string, stored: string): boolean {
-  const [salt, hex] = stored.split(":");
-  const derived = scryptSync(password, salt, 32).toString("hex");
-  return timingSafeEqual(Buffer.from(derived, "hex"), Buffer.from(hex, "hex"));
+  try {
+    const [salt, hex] = stored.split(":");
+    if (!salt || !hex) return false;
+    const derived = scryptSync(password, salt, 32).toString("hex");
+    const derivedBuf = Buffer.from(derived, "hex");
+    const storedBuf = Buffer.from(hex, "hex");
+
+    if (derivedBuf.length !== storedBuf.length) {
+      return false;
+    }
+    return timingSafeEqual(derivedBuf, storedBuf);
+  } catch (_error) {
+    return false;
+  }
 }
 
 @Injectable()
@@ -52,33 +63,38 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const user = await this.prisma.user.findUnique({
-      where: { email: dto.email },
-    });
-    if (!user) throw new UnauthorizedException("Identifiants invalides");
-    if (!verifyPassword(dto.password, user.passwordHash)) {
-      throw new UnauthorizedException("Identifiants invalides");
-    }
-    if (user.status === "REJECTED") {
-      throw new ForbiddenException("Compte rejeté");
-    }
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { email: dto.email },
+      });
+      if (!user) throw new UnauthorizedException("Identifiants invalides");
+      if (!verifyPassword(dto.password, user.passwordHash)) {
+        throw new UnauthorizedException("Identifiants invalides");
+      }
+      if (user.status === "REJECTED") {
+        throw new ForbiddenException("Compte rejeté");
+      }
 
-    const payload = {
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-      status: user.status,
-    };
-
-    return {
-      token: this.jwtService.sign(payload),
-      user: {
-        id: user.id,
+      const payload = {
+        sub: user.id,
         email: user.email,
         role: user.role,
         status: user.status,
-        companyName: user.companyName,
-      },
-    };
+      };
+
+      return {
+        token: this.jwtService.sign(payload),
+        user: {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          status: user.status,
+          companyName: user.companyName,
+        },
+      };
+    } catch (error) {
+      console.error("Login Error:", error);
+      throw error;
+    }
   }
 }
