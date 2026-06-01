@@ -1,8 +1,8 @@
-import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import * as Minio from 'minio';
-import { Readable } from 'stream';
-import { IStorageDriver, UploadResult, FileStats } from './storage.interface';
+import { Injectable, OnModuleInit, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import * as Minio from "minio";
+import { Readable } from "stream";
+import { IStorageDriver, UploadResult, FileStats } from "./storage.interface";
 
 /**
  * Driver de stockage MinIO (compatible S3).
@@ -16,14 +16,24 @@ export class MinioStorageService implements IStorageDriver, OnModuleInit {
 
   constructor(private readonly configService: ConfigService) {
     this.client = new Minio.Client({
-      endPoint: this.configService.get<string>('MINIO_ENDPOINT', 'localhost'),
-      port: this.configService.get<number>('MINIO_PORT', 9000),
-      useSSL: this.configService.get<string>('MINIO_USE_SSL', 'false') === 'true',
-      accessKey: this.configService.get<string>('MINIO_ACCESS_KEY', 'minioadmin'),
-      secretKey: this.configService.get<string>('MINIO_SECRET_KEY', 'minioadmin123'),
+      endPoint: this.configService.get<string>("MINIO_ENDPOINT", "localhost"),
+      port: this.configService.get<number>("MINIO_PORT", 9000),
+      useSSL:
+        this.configService.get<string>("MINIO_USE_SSL", "false") === "true",
+      accessKey: this.configService.get<string>(
+        "MINIO_ACCESS_KEY",
+        "minioadmin",
+      ),
+      secretKey: this.configService.get<string>(
+        "MINIO_SECRET_KEY",
+        "minioadmin123",
+      ),
     });
 
-    this.bucket = this.configService.get<string>('MINIO_BUCKET', 'lecreuset-files');
+    this.bucket = this.configService.get<string>(
+      "MINIO_BUCKET",
+      "lecreuset-files",
+    );
   }
 
   async onModuleInit() {
@@ -56,7 +66,7 @@ export class MinioStorageService implements IStorageDriver, OnModuleInit {
       objectName,
       data,
       size,
-      { 'Content-Type': mimeType },
+      { "Content-Type": mimeType },
     );
 
     this.logger.log(`📤 Uploaded file to MinIO: ${objectName}`);
@@ -90,12 +100,19 @@ export class MinioStorageService implements IStorageDriver, OnModuleInit {
     const stats = await this.client.statObject(this.bucket, objectName);
     return {
       size: stats.size,
-      mimeType: stats.metaData['content-type'] || 'application/octet-stream',
+      mimeType: stats.metaData["content-type"] || "application/octet-stream",
       lastModified: stats.lastModified,
     };
   }
 
-  async getPresignedUrl(objectName: string, expirySeconds = 3600): Promise<string> {
-    return this.client.presignedGetObject(this.bucket, objectName, expirySeconds);
+  async getPresignedUrl(
+    objectName: string,
+    expirySeconds = 3600,
+  ): Promise<string> {
+    return this.client.presignedGetObject(
+      this.bucket,
+      objectName,
+      expirySeconds,
+    );
   }
 }

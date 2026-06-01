@@ -1,0 +1,27 @@
+services:
+  back:
+    image: ghcr.io/${GITHUB_REPOSITORY}:latest
+    container_name: lecreuset-back
+    restart: unless-stopped
+    env_file:
+      - .env
+    networks:
+      - proxy
+      - db_internal
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.back-prod.rule=Host(`${VITE_DOMAIN_NAME:-api.lagrenaille.fr}`)"
+      - "traefik.http.routers.back-prod.entrypoints=websecure"
+      - "traefik.http.routers.back-prod.tls.certresolver=myresolver"
+      - "traefik.http.services.back-prod.loadbalancer.server.port=3000"
+
+networks:
+  proxy:
+    external: true
+  db_internal:
+    external: true

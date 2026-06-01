@@ -1,7 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { Resend } from 'resend';
-import * as nodemailer from 'nodemailer';
+import { Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { Resend } from "resend";
+import * as nodemailer from "nodemailer";
 
 export interface EmailOptions {
   to: string | string[];
@@ -24,13 +24,31 @@ export class MailService {
   private readonly smtpTransport: nodemailer.Transporter | null;
 
   constructor(private readonly configService: ConfigService) {
-    const apiKey = this.configService.get<string>('RESEND_API_KEY', '');
+    const apiKey = this.configService.get<string>("RESEND_API_KEY", "");
     this.resend = apiKey ? new Resend(apiKey) : null;
-    this.from = this.configService.get<string>('MAIL_FROM', 'noreply@example.com');
-    const host = this.configService.get<string>('SMTP_HOST', '');
-    const portStr = this.configService.get<string>('SMTP_PORT', '');
+    this.from = this.configService.get<string>(
+      "MAIL_FROM",
+      "noreply@example.com",
+    );
+
+    const host = this.configService.get<string>("SMTP_HOST", "");
+    const portStr = this.configService.get<string>("SMTP_PORT", "");
     const port = portStr ? Number(portStr) : 0;
-    this.smtpTransport = host && port ? nodemailer.createTransport({ host, port, secure: false, ignoreTLS: true, tls: { rejectUnauthorized: false } }) : null;
+    const user = this.configService.get<string>("SMTP_USER", "");
+    const pass = this.configService.get<string>("SMTP_PASSWORD", "");
+    const secure =
+      this.configService.get<string>("SMTP_SECURE", "false") === "true";
+
+    if (host && port) {
+      this.smtpTransport = nodemailer.createTransport({
+        host,
+        port,
+        secure, // true for 465, false for other ports
+        auth: user && pass ? { user, pass } : undefined,
+      });
+    } else {
+      this.smtpTransport = null;
+    }
   }
 
   /**
@@ -50,16 +68,16 @@ export class MailService {
 
         if (error) {
           this.logger.error(`Failed to send email: ${error.message}`);
-          return { id: '', success: false };
+          return { id: "", success: false };
         }
 
         this.logger.log(`📧 Email sent successfully: ${data?.id}`);
-        return { id: data?.id ?? '', success: true };
+        return { id: data?.id ?? "", success: true };
       }
       if (this.smtpTransport) {
         const info = await this.smtpTransport.sendMail({
           from: this.from,
-          to: Array.isArray(options.to) ? options.to.join(',') : options.to,
+          to: Array.isArray(options.to) ? options.to.join(",") : options.to,
           subject: options.subject,
           html: options.html,
           text: options.text,
@@ -68,11 +86,13 @@ export class MailService {
         this.logger.log(`📧 SMTP email sent: ${info.messageId}`);
         return { id: info.messageId, success: true };
       }
-      this.logger.warn(`Email non envoyé (aucun transport configuré). Sujet: ${options.subject}`);
-      return { id: '', success: true };
+      this.logger.warn(
+        `Email non envoyé (aucun transport configuré). Sujet: ${options.subject}`,
+      );
+      return { id: "", success: true };
     } catch (error) {
       this.logger.error(`Failed to send email: ${error}`);
-      return { id: '', success: false };
+      return { id: "", success: false };
     }
   }
 
@@ -93,7 +113,7 @@ export class MailService {
         <p>Nous avons bien reçu votre demande de devis (référence: <strong>${quoteRef}</strong>).</p>
         <p>Vous pouvez suivre l'état de votre demande ici: <a href="${quoteUrl}">${quoteUrl}</a></p>
         <p>Nous reviendrons vers vous rapidement.</p>
-        <p>Cordialement,<br/>L'équipe Le Creuset</p>
+        <p>Cordialement,<br/>L'équipe La Grenaille</p>
       `,
       text: `Demande de devis reçue\n\nRéférence: ${quoteRef}\nSuivi: ${quoteUrl}`,
     });
@@ -107,7 +127,10 @@ export class MailService {
     customerEmail: string,
     fileCount: number,
   ): Promise<EmailResult> {
-    const adminEmail = this.configService.get<string>('ADMIN_EMAIL', 'admin@lecreuset.fr');
+    const adminEmail = this.configService.get<string>(
+      "ADMIN_EMAIL",
+      "contact@lagrenaille.fr",
+    );
 
     return this.sendEmail({
       to: adminEmail,
@@ -127,15 +150,19 @@ export class MailService {
    * Send welcome email to newly activated user
    */
   async sendWelcomeEmail(to: string): Promise<EmailResult> {
+    const frontendUrl = this.configService.get<string>(
+      "FRONTEND_URL",
+      "http://localhost:5173",
+    );
     return this.sendEmail({
       to,
-      subject: 'Votre compte a été activé',
+      subject: "Votre compte a été activé",
       html: `
         <h1>Bienvenue</h1>
         <p>Votre compte professionnel a été activé.</p>
-        <p>Vous pouvez vous connecter ici: <a href="http://localhost:5173/login">Se connecter</a></p>
+        <p>Vous pouvez vous connecter ici: <a href="${frontendUrl}/login">Se connecter</a></p>
       `,
-      text: 'Votre compte professionnel a été activé. Connectez-vous: http://localhost:5173/login',
+      text: `Votre compte professionnel a été activé. Connectez-vous: ${frontendUrl}/login`,
     });
   }
 
@@ -148,8 +175,12 @@ export class MailService {
     invoiceNumber: string,
     amount?: number,
   ): Promise<EmailResult> {
-    const amountText = amount ? `Montant: ${amount} €` : '';
-    
+    const frontendUrl = this.configService.get<string>(
+      "FRONTEND_URL",
+      "http://localhost:5173",
+    );
+    const amountText = amount ? `Montant: ${amount} €` : "";
+
     return this.sendEmail({
       to,
       subject: `Votre commande #${orderRef} est terminée - Facture disponible`,
@@ -161,12 +192,12 @@ export class MailService {
           
           <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
             <h3 style="margin-top: 0; color: #333;">Facture N° ${invoiceNumber}</h3>
-            ${amountText ? `<p style="font-size: 24px; font-weight: bold; color: #c9a227;">${amountText}</p>` : ''}
+            ${amountText ? `<p style="font-size: 24px; font-weight: bold; color: #c9a227;">${amountText}</p>` : ""}
             <p style="color: #666;">Votre facture est disponible dans votre espace client.</p>
           </div>
           
           <p>
-            <a href="http://localhost:5173/client/invoices" 
+            <a href="${frontendUrl}/client/invoices" 
                style="display: inline-block; background: #c9a227; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
               Voir ma facture
             </a>
@@ -174,11 +205,11 @@ export class MailService {
           
           <p style="color: #666; font-size: 14px; margin-top: 30px;">
             Merci pour votre confiance.<br/>
-            L'équipe Le Creuset
+            L'équipe La Grenaille
           </p>
         </div>
       `,
-      text: `Votre commande #${orderRef} est terminée.\n\nFacture N° ${invoiceNumber}\n${amountText}\n\nConnectez-vous pour télécharger votre facture: http://localhost:5173/client/invoices`,
+      text: `Votre commande #${orderRef} est terminée.\n\nFacture N° ${invoiceNumber}\n${amountText}\n\nConnectez-vous pour télécharger votre facture: ${frontendUrl}/client/invoices`,
     });
   }
 }

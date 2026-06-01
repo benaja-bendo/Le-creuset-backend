@@ -1,6 +1,11 @@
-import { Injectable, Inject, Logger } from '@nestjs/common';
-import { Readable } from 'stream';
-import { IStorageDriver, UploadResult, FileStats, STORAGE_DRIVER } from './storage.interface';
+import { Injectable, Inject, Logger } from "@nestjs/common";
+import { Readable } from "stream";
+import {
+  IStorageDriver,
+  UploadResult,
+  FileStats,
+  STORAGE_DRIVER,
+} from "./storage.interface";
 
 /**
  * Service de stockage principal.
@@ -58,7 +63,10 @@ export class StorageService {
   /**
    * Get a presigned URL (only available with MinIO driver)
    */
-  async getPresignedUrl(objectName: string, expirySeconds = 3600): Promise<string | null> {
+  async getPresignedUrl(
+    objectName: string,
+    expirySeconds = 3600,
+  ): Promise<string | null> {
     if (this.driver.getPresignedUrl) {
       return this.driver.getPresignedUrl(objectName, expirySeconds);
     }

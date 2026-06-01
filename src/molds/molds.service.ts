@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { Injectable } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
 
 @Injectable()
 export class MoldsService {
@@ -8,7 +8,7 @@ export class MoldsService {
   async findByUser(userId: string) {
     return this.prisma.mold.findMany({
       where: { userId },
-      orderBy: { name: 'asc' },
+      orderBy: { name: "asc" },
     });
   }
 
@@ -23,11 +23,16 @@ export class MoldsService {
           },
         },
       },
-      orderBy: { user: { companyName: 'asc' } },
+      orderBy: { user: { companyName: "asc" } },
     });
   }
 
-  async create(data: { userId: string; reference: string; name: string; photoUrl?: string }) {
+  async create(data: {
+    userId: string;
+    reference: string;
+    name: string;
+    photoUrl?: string;
+  }) {
     return this.prisma.mold.create({
       data,
     });

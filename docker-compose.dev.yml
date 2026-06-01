@@ -1,0 +1,25 @@
+services:
+  back-dev:
+    image: ghcr.io/benajabendo/le-creuset-back:back-dev
+    container_name: lecreuset-back-dev
+    restart: always
+    networks:
+      - proxy
+      - db_internal
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.back-dev.rule=Host(`api.dev.lagrenaille.fr`)"
+      - "traefik.http.routers.back-dev.entrypoints=websecure"
+      - "traefik.http.routers.back-dev.tls.certresolver=myresolver"
+      - "traefik.http.services.back-dev.loadbalancer.server.port=3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      # Les variables sensibles seront injectées via le docker-compose.yml généré par la CI
+      # DATABASE_URL, MINIO_*, etc.
+
+networks:
+  proxy:
+    external: true
+  db_internal:
+    external: true

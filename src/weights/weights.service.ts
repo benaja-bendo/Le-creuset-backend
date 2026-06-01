@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { MetalType, TransactionType } from '@prisma/client';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
+import { BaseMetalType, TransactionType } from "@prisma/client";
 
 @Injectable()
 export class WeightsService {
@@ -15,7 +15,7 @@ export class WeightsService {
       include: {
         transactions: {
           take: 10,
-          orderBy: { date: 'desc' },
+          orderBy: { date: "desc" },
         },
       },
     });
@@ -35,7 +35,7 @@ export class WeightsService {
           },
         },
       },
-      orderBy: { balance: 'asc' }, // Shows negative balances first (clients who owe metal)
+      orderBy: { balance: "asc" }, // Shows negative balances first (clients who owe metal)
     });
   }
 
@@ -43,10 +43,10 @@ export class WeightsService {
    * Initialize accounts for a new user
    */
   async initializeUserAccounts(userId: string) {
-    const metalTypes = Object.values(MetalType);
+    const metalTypes = Object.values(BaseMetalType);
     const data = metalTypes.map((type) => ({
       userId,
-      metalType: type,
+      metalType: type as BaseMetalType,
       balance: 0,
     }));
 
@@ -58,22 +58,26 @@ export class WeightsService {
   /**
    * Add a transaction to a metal account and update its balance
    */
-  async addTransaction(accountId: string, data: {
-    type: TransactionType;
-    amount: number;
-    label: string;
-    date?: Date;
-  }) {
+  async addTransaction(
+    accountId: string,
+    data: {
+      type: TransactionType;
+      amount: number;
+      label: string;
+      date?: Date;
+    },
+  ) {
     const account = await this.prisma.metalAccount.findUnique({
       where: { id: accountId },
     });
 
-    if (!account) throw new NotFoundException('Compte métal non trouvé');
+    if (!account) throw new NotFoundException("Compte métal non trouvé");
 
     const amount = Number(data.amount);
-    const newBalance = data.type === TransactionType.CREDIT 
-      ? Number(account.balance) + amount
-      : Number(account.balance) - amount;
+    const newBalance =
+      data.type === TransactionType.CREDIT
+        ? Number(account.balance) + amount
+        : Number(account.balance) - amount;
 
     return this.prisma.$transaction(async (tx) => {
       // Create transaction record
@@ -99,9 +103,9 @@ export class WeightsService {
   }
 
   /**
-   * Find metal account by user ID and metal type
+   * Find metal account by user ID and base metal type
    */
-  async findAccountByUserAndMetal(userId: string, metalType: MetalType) {
+  async findAccountByUserAndMetal(userId: string, metalType: BaseMetalType) {
     return this.prisma.metalAccount.findFirst({
       where: { userId, metalType },
     });

@@ -1,11 +1,18 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { createReadStream, createWriteStream, existsSync, mkdirSync, statSync, unlinkSync } from 'fs';
-import { join, dirname } from 'path';
-import { Readable } from 'stream';
-import { createHash } from 'crypto';
-import { IStorageDriver, UploadResult, FileStats } from './storage.interface';
-import { lookup } from 'mime-types';
+import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import {
+  createReadStream,
+  createWriteStream,
+  existsSync,
+  mkdirSync,
+  statSync,
+  unlinkSync,
+} from "fs";
+import { join, dirname } from "path";
+import { Readable } from "stream";
+import { createHash } from "crypto";
+import { IStorageDriver, UploadResult, FileStats } from "./storage.interface";
+import { lookup } from "mime-types";
 
 /**
  * Driver de stockage local sur le système de fichiers.
@@ -17,7 +24,10 @@ export class LocalStorageService implements IStorageDriver, OnModuleInit {
   private readonly basePath: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.basePath = this.configService.get<string>('STORAGE_LOCAL_PATH', './uploads');
+    this.basePath = this.configService.get<string>(
+      "STORAGE_LOCAL_PATH",
+      "./uploads",
+    );
   }
 
   async onModuleInit() {
@@ -41,10 +51,10 @@ export class LocalStorageService implements IStorageDriver, OnModuleInit {
     objectName: string,
     data: Buffer | Readable,
     size: number,
-    mimeType: string,
+    _mimeType: string,
   ): Promise<UploadResult> {
     const fullPath = this.getFullPath(objectName);
-    
+
     // Ensure parent directory exists
     const dir = dirname(fullPath);
     if (!existsSync(dir)) {
@@ -53,25 +63,25 @@ export class LocalStorageService implements IStorageDriver, OnModuleInit {
 
     return new Promise((resolve, reject) => {
       const writeStream = createWriteStream(fullPath);
-      let hash = createHash('md5');
+      const hash = createHash("md5");
 
-      writeStream.on('finish', () => {
+      writeStream.on("finish", () => {
         this.logger.log(`📤 Uploaded file locally: ${objectName}`);
         resolve({
           storagePath: objectName,
-          etag: hash.digest('hex'),
+          etag: hash.digest("hex"),
           size,
         });
       });
 
-      writeStream.on('error', reject);
+      writeStream.on("error", reject);
 
       if (Buffer.isBuffer(data)) {
         hash.update(data);
         writeStream.write(data);
         writeStream.end();
       } else {
-        data.on('data', (chunk) => hash.update(chunk));
+        data.on("data", (chunk) => hash.update(chunk));
         data.pipe(writeStream);
       }
     });
@@ -79,7 +89,7 @@ export class LocalStorageService implements IStorageDriver, OnModuleInit {
 
   async downloadFile(objectName: string): Promise<Readable> {
     const fullPath = this.getFullPath(objectName);
-    
+
     if (!existsSync(fullPath)) {
       throw new Error(`File not found: ${objectName}`);
     }
@@ -89,7 +99,7 @@ export class LocalStorageService implements IStorageDriver, OnModuleInit {
 
   async deleteFile(objectName: string): Promise<void> {
     const fullPath = this.getFullPath(objectName);
-    
+
     if (existsSync(fullPath)) {
       unlinkSync(fullPath);
       this.logger.log(`🗑️ Deleted file locally: ${objectName}`);
@@ -102,13 +112,13 @@ export class LocalStorageService implements IStorageDriver, OnModuleInit {
 
   async getFileStats(objectName: string): Promise<FileStats> {
     const fullPath = this.getFullPath(objectName);
-    
+
     if (!existsSync(fullPath)) {
       throw new Error(`File not found: ${objectName}`);
     }
 
     const stats = statSync(fullPath);
-    const mimeType = lookup(objectName) || 'application/octet-stream';
+    const mimeType = lookup(objectName) || "application/octet-stream";
 
     return {
       size: stats.size,
