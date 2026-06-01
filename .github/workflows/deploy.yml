@@ -113,30 +113,30 @@ jobs:
             GITHUB_REPOSITORY=$REPO_LC
 
             # Base de données
-            DATABASE_URL=${{ secrets.DATABASE_URL }}
-            POSTGRES_USER=${{ secrets.POSTGRES_USER }}
-            POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
-            POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+            DATABASE_URL="${{ secrets.DATABASE_URL }}"
+            POSTGRES_USER="${{ secrets.POSTGRES_USER }}"
+            POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD }}"
+            POSTGRES_DB="${{ secrets.POSTGRES_DB }}"
 
             # Stockage
-            STORAGE_DRIVER=${{ secrets.STORAGE_DRIVER }}
-            STORAGE_LOCAL_PATH=${{ secrets.STORAGE_LOCAL_PATH }}
-            MINIO_ROOT_USER=${{ secrets.MINIO_ROOT_USER }}
-            MINIO_ROOT_PASSWORD=${{ secrets.MINIO_ROOT_PASSWORD }}
-            MINIO_ENDPOINT=${{ secrets.MINIO_ENDPOINT }}
-            MINIO_PORT=${{ secrets.MINIO_PORT }}
-            MINIO_USE_SSL=${{ secrets.MINIO_USE_SSL }}
-            MINIO_ACCESS_KEY=${{ secrets.MINIO_ACCESS_KEY }}
-            MINIO_SECRET_KEY=${{ secrets.MINIO_SECRET_KEY }}
-            MINIO_BUCKET=${{ secrets.MINIO_BUCKET }}
+            STORAGE_DRIVER="${{ secrets.STORAGE_DRIVER }}"
+            STORAGE_LOCAL_PATH="${{ secrets.STORAGE_LOCAL_PATH }}"
+            MINIO_ROOT_USER="${{ secrets.MINIO_ROOT_USER }}"
+            MINIO_ROOT_PASSWORD="${{ secrets.MINIO_ROOT_PASSWORD }}"
+            MINIO_ENDPOINT="${{ secrets.MINIO_ENDPOINT }}"
+            MINIO_PORT="${{ secrets.MINIO_PORT }}"
+            MINIO_USE_SSL="${{ secrets.MINIO_USE_SSL }}"
+            MINIO_ACCESS_KEY="${{ secrets.MINIO_ACCESS_KEY }}"
+            MINIO_SECRET_KEY="${{ secrets.MINIO_SECRET_KEY }}"
+            MINIO_BUCKET="${{ secrets.MINIO_BUCKET }}"
             
             # Email (Resend)
-            RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
-            EMAIL_FROM=${{ secrets.EMAIL_FROM }}
+            RESEND_API_KEY="${{ secrets.RESEND_API_KEY }}"
+            EMAIL_FROM="${{ secrets.EMAIL_FROM }}"
 
             # Auth (JWT)
-            JWT_SECRET=${{ secrets.JWT_SECRET }}
-            JWT_EXPIRES_IN=${{ secrets.JWT_EXPIRES_IN }}
+            JWT_SECRET="${{ secrets.JWT_SECRET }}"
+            JWT_EXPIRES_IN="${{ secrets.JWT_EXPIRES_IN }}"
             EOF
 
             MAX_RETRIES=5
