@@ -2,7 +2,6 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { StorageService } from "./storage.service";
 import { STORAGE_DRIVER } from "./storage.interface";
 import { createMockStorageDriver } from "../common/test-utils";
-import { Readable } from "stream";
 
 describe("StorageService", () => {
   let service: StorageService;

@@ -88,7 +88,7 @@ describe("WeightsService", () => {
       };
       prisma.$transaction.mockImplementation((cb: any) => cb(txMock));
 
-      const result = await service.addTransaction("account-1", {
+      await service.addTransaction("account-1", {
         type: "CREDIT" as any,
         amount: 50,
         label: "Test credit",

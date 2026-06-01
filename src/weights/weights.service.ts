@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
-import { MetalType, BaseMetalType, TransactionType } from "@prisma/client";
+import { BaseMetalType, TransactionType } from "@prisma/client";
 
 @Injectable()
 export class WeightsService {

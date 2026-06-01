@@ -51,7 +51,7 @@ export class LocalStorageService implements IStorageDriver, OnModuleInit {
     objectName: string,
     data: Buffer | Readable,
     size: number,
-    mimeType: string,
+    _mimeType: string,
   ): Promise<UploadResult> {
     const fullPath = this.getFullPath(objectName);
 
@@ -63,7 +63,7 @@ export class LocalStorageService implements IStorageDriver, OnModuleInit {
 
     return new Promise((resolve, reject) => {
       const writeStream = createWriteStream(fullPath);
-      let hash = createHash("md5");
+      const hash = createHash("md5");
 
       writeStream.on("finish", () => {
         this.logger.log(`📤 Uploaded file locally: ${objectName}`);

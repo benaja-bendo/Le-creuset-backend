@@ -31,7 +31,7 @@ export class StorageController {
     const cleanName = file.originalname.replace(/[^a-zA-Z0-9.]/g, "_");
     const objectName = `${timestamp}-${cleanName}`;
 
-    const result = await this.storageService.uploadFile(
+    await this.storageService.uploadFile(
       objectName,
       file.buffer,
       file.size,
@@ -63,7 +63,7 @@ export class StorageController {
       });
 
       stream.pipe(res);
-    } catch (error) {
+    } catch (_error) {
       throw new BadRequestException("Fichier introuvable");
     }
   }

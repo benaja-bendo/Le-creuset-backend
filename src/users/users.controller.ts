@@ -117,7 +117,7 @@ export class UsersController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("ADMIN")
   async updateStatus(@Param("id") id: string, @Body() dto: UpdateStatusDto) {
-    const result = await this.usersService.updateStatus(id, dto.status);
+    await this.usersService.updateStatus(id, dto.status);
     if (dto.status === "ACTIVE") {
       const u = await this.usersService.findById(id);
       if (u?.email) await this.mailService.sendWelcomeEmail(u.email);
