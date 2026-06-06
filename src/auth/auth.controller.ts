@@ -14,6 +14,32 @@ export class AuthController {
     private readonly configService: ConfigService,
   ) {}
 
+  @Post("forgot-password")
+  async forgotPassword(@Body("email") email: string) {
+    if (!email) return { ok: true };
+    const resetLink = await this.authService.generatePasswordResetLink(email);
+    if (resetLink) {
+      await this.mailService.sendEmail({
+        to: email,
+        subject: "Réinitialisation de votre mot de passe - La Grenaille",
+        html: `
+          <h1>Réinitialisation de mot de passe</h1>
+          <p>Vous avez demandé la réinitialisation de votre mot de passe.</p>
+          <p>Cliquez sur le lien ci-dessous pour créer un nouveau mot de passe :</p>
+          <p><a href="${resetLink}">Réinitialiser mon mot de passe</a></p>
+          <p>Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet email.</p>
+        `,
+      });
+    }
+    return { ok: true, message: "Si cet email existe, un lien a été envoyé." };
+  }
+
+  @Post("reset-password")
+  async resetPassword(@Body() dto: any) {
+    await this.authService.resetPassword(dto.token, dto.newPassword);
+    return { ok: true, message: "Mot de passe mis à jour avec succès." };
+  }
+
   @Post("register")
   async register(@Body() dto: RegisterDto) {
     const result = await this.authService.register(dto);

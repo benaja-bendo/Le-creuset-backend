@@ -5,6 +5,7 @@ import {
   Param,
   Patch,
   Post,
+  Delete,
   UseGuards,
   Req,
 } from "@nestjs/common";
@@ -138,6 +139,16 @@ export class UsersController {
     return { id, status: "PENDING" };
   }
 
+  @Patch(":id/documents")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("ADMIN")
+  async updateAdminDocuments(
+    @Param("id") id: string,
+    @Body() dto: UpdateDocumentsDto,
+  ) {
+    return this.usersService.updateDocuments(id, dto);
+  }
+
   @Patch(":id/role")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("ADMIN")
@@ -147,6 +158,13 @@ export class UsersController {
     @Body() dto: UpdateRoleDto,
   ) {
     return this.usersService.updateRole(id, req.user.id, dto);
+  }
+
+  @Delete(":id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("ADMIN")
+  async deleteUser(@Param("id") id: string) {
+    return this.usersService.deleteUser(id);
   }
 
   @Get(":id")

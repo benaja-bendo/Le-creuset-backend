@@ -7,13 +7,11 @@ export const CreateInvoiceSchema = z.object({
   orderId: z.string().optional(),
   userId: z.string().min(1, { message: "Client requis" }),
   fileUrl: z.string().min(1, { message: "Fichier requis" }),
-  amount: z.number().positive().optional(),
+  amount: z.number().positive().optional().nullable(),
   issueDate: z.string().optional(), // ISO date string
   notes: z.string().optional(),
   // Transaction métal optionnelle à enregistrer en même temps que la facture
-  metalType: z
-    .enum(["OR_FIN", "ARGENT_FIN", "PLATINE"])
-    .optional(),
+  metalType: z.enum(["OR_FIN", "ARGENT_FIN", "PLATINE"]).optional(),
   metalWeight: z.number().positive().optional(),
   metalTransactionType: z.enum(["CREDIT", "DEBIT"]).optional(),
 });

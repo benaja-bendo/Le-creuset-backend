@@ -23,8 +23,8 @@ export const RegisterSchema = z.object({
   }),
   phone: z.string().min(6, { message: "Numéro de téléphone invalide" }),
   address: z.string().min(6, { message: "Adresse trop courte" }),
-  kbisFileUrl: filePathOrUrl,
-  customsFileUrl: filePathOrUrl,
+  kbisFileUrl: filePathOrUrl.optional().or(z.literal("")),
+  customsFileUrl: filePathOrUrl.optional().or(z.literal("")),
 });
 
 export class RegisterDto extends createZodDto(RegisterSchema) {}
