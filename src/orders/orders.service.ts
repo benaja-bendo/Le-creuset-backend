@@ -43,6 +43,7 @@ export class OrdersService {
     materialType?: MetalType;
     notes?: string;
   }) {
+    const generatedOrderNumber = `CMD-${Date.now().toString().slice(-6)}`;
     return this.prisma.order.create({
       data: {
         userId: data.userId,
@@ -51,6 +52,7 @@ export class OrdersService {
         estimatedPrice: data.estimatedPrice,
         materialType: data.materialType,
         notes: data.notes,
+        orderNumber: generatedOrderNumber,
       },
     });
   }
@@ -60,7 +62,10 @@ export class OrdersService {
     estimatedPrice?: number;
     materialType?: string;
     notes?: string;
+    orderNumber?: string;
   }) {
+    const generatedOrderNumber =
+      data.orderNumber || `CMD-${Date.now().toString().slice(-6)}`;
     return this.prisma.order.create({
       data: {
         userId: data.userId,
@@ -69,6 +74,7 @@ export class OrdersService {
         materialType: data.materialType as MetalType,
         notes: data.notes,
         isManualOrder: true,
+        orderNumber: generatedOrderNumber,
       },
     });
   }

@@ -3,6 +3,8 @@ import { UnauthorizedException, ForbiddenException } from "@nestjs/common";
 import { AuthService } from "./auth.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { JwtService } from "@nestjs/jwt";
+import { ConfigService } from "@nestjs/config";
+import { MailService } from "../mail/mail.service";
 import {
   createMockPrismaService,
   createMockJwtService,
@@ -30,6 +32,14 @@ describe("AuthService", () => {
         AuthService,
         { provide: PrismaService, useValue: prisma },
         { provide: JwtService, useValue: jwt },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn().mockReturnValue("mock-secret") },
+        },
+        {
+          provide: MailService,
+          useValue: { sendPasswordResetEmail: jest.fn() },
+        },
       ],
     }).compile();
 

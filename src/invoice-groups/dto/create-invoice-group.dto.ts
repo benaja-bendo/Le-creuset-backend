@@ -7,7 +7,7 @@ export const CreateInvoiceGroupSchema = z.object({
     .min(1, { message: "Au moins une commande doit être sélectionnée" }),
   invoiceNumber: z.string().min(1, { message: "Numéro de facture requis" }),
   fileUrl: z.string().optional(),
-  amount: z.number().positive().optional(),
+  amount: z.number().positive().optional().nullable(),
   notes: z.string().optional(),
   baseMetalType: z
     .enum(["OR_FIN", "ARGENT_FIN", "PLATINE", "PALLADIUM"])

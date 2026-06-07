@@ -169,6 +169,7 @@ model Order {
   materialType   String?    @map("material_type")
   quantity       Int        @default(1)
   isManualOrder  Boolean    @default(false) @map("is_manual_order")
+  orderNumber    String?    @unique @map("order_number")
   createdAt      DateTime   @default(now()) @map("created_at")
   updatedAt      DateTime   @updatedAt @map("updated_at")
 

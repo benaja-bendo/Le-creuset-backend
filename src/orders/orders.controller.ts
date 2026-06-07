@@ -65,6 +65,7 @@ export class OrdersController {
       estimatedPrice?: number;
       materialType?: string;
       notes?: string;
+      orderNumber?: string;
     },
   ) {
     return this.ordersService.createManual(dto);

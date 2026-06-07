@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException } from "@nestjs/common";
+import {
+  Injectable,
+  UnauthorizedException,
+  NotFoundException,
+} from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateUserDto } from "./dto/create-user.dto";
 import { UpdateProfileDto } from "./dto/update-profile.dto";
@@ -222,6 +226,30 @@ export class UsersService {
         role: true,
         updatedAt: true,
       },
+    });
+  }
+
+  /**
+   * Delete user and all associated data completely
+   */
+  async deleteUser(id: string) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) {
+      throw new NotFoundException("Utilisateur non trouvé");
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.transaction.deleteMany({ where: { account: { userId: id } } });
+      await tx.metalAccount.deleteMany({ where: { userId: id } });
+      await tx.file.deleteMany({ where: { userId: id } });
+      await tx.quote.deleteMany({ where: { userId: id } });
+      await tx.mold.deleteMany({ where: { userId: id } });
+      await tx.invoice.deleteMany({ where: { userId: id } });
+      await tx.order.deleteMany({ where: { userId: id } });
+      await tx.invoiceGroup.deleteMany({ where: { userId: id } });
+      await tx.libraryFile.deleteMany({ where: { userId: id } });
+
+      return tx.user.delete({ where: { id } });
     });
   }
 }
