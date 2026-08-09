@@ -183,7 +183,11 @@ describe("InvoiceGroupsService", () => {
   });
 
   describe("remove", () => {
-    it("should delete an invoice group", async () => {
+    it("should delete an invoice group with no shipped order", async () => {
+      prisma.invoiceGroup.findUnique.mockResolvedValue({
+        id: "group-1",
+        orders: [{ status: "TIRAGE_OK" }, { status: "FONDU" }],
+      });
       prisma.invoiceGroup.delete.mockResolvedValue({ id: "group-1" });
 
       await service.remove("group-1");
@@ -191,6 +195,26 @@ describe("InvoiceGroupsService", () => {
       expect(prisma.invoiceGroup.delete).toHaveBeenCalledWith({
         where: { id: "group-1" },
       });
+    });
+
+    it("should throw NotFoundException if group not found", async () => {
+      prisma.invoiceGroup.findUnique.mockResolvedValue(null);
+
+      await expect(service.remove("nonexistent")).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it("should reject deleting a group containing a shipped order", async () => {
+      prisma.invoiceGroup.findUnique.mockResolvedValue({
+        id: "group-1",
+        orders: [{ status: "TIRAGE_OK" }, { status: "EXPEDIE" }],
+      });
+
+      await expect(service.remove("group-1")).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(prisma.invoiceGroup.delete).not.toHaveBeenCalled();
     });
   });
 });

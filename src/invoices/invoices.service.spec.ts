@@ -1,4 +1,5 @@
 import { Test, TestingModule } from "@nestjs/testing";
+import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { InvoicesService } from "./invoices.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { WeightsService } from "../weights/weights.service";
@@ -131,7 +132,9 @@ describe("InvoicesService", () => {
   });
 
   describe("delete", () => {
-    it("should delete an invoice", async () => {
+    it("should delete an invoice with no linked order or weight movement", async () => {
+      prisma.invoice.findUnique.mockResolvedValue(fakeInvoice({ order: null }));
+      prisma.transaction.findFirst.mockResolvedValue(null);
       prisma.invoice.delete.mockResolvedValue(fakeInvoice());
 
       await service.delete("invoice-1");
@@ -139,6 +142,40 @@ describe("InvoicesService", () => {
       expect(prisma.invoice.delete).toHaveBeenCalledWith({
         where: { id: "invoice-1" },
       });
+    });
+
+    it("should throw NotFoundException if invoice not found", async () => {
+      prisma.invoice.findUnique.mockResolvedValue(null);
+
+      await expect(service.delete("nonexistent")).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it("should reject deleting an invoice linked to a shipped order", async () => {
+      prisma.invoice.findUnique.mockResolvedValue(
+        fakeInvoice({ order: { status: "EXPEDIE" } }),
+      );
+
+      await expect(service.delete("invoice-1")).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(prisma.invoice.delete).not.toHaveBeenCalled();
+    });
+
+    it("should reject deleting an invoice that triggered a weight movement", async () => {
+      prisma.invoice.findUnique.mockResolvedValue(
+        fakeInvoice({ invoiceNumber: "INV-042", order: null }),
+      );
+      prisma.transaction.findFirst.mockResolvedValue({
+        id: "tx-1",
+        label: "Facture INV-042",
+      });
+
+      await expect(service.delete("invoice-1")).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(prisma.invoice.delete).not.toHaveBeenCalled();
     });
   });
 

@@ -6,6 +6,7 @@ import {
 import { CreateInvoiceGroupDto } from "./dto/create-invoice-group.dto";
 import { UpdateInvoiceGroupDto } from "./dto/update-invoice-group.dto";
 import { PrismaService } from "../prisma/prisma.service";
+import { OrderStatus } from "@prisma/client";
 
 @Injectable()
 export class InvoiceGroupsService {
@@ -108,7 +109,28 @@ export class InvoiceGroupsService {
     });
   }
 
-  remove(id: string) {
+  /**
+   * remove() détache silencieusement les commandes du groupe (SetNull sur la
+   * relation optionnelle) sans le signaler à l'admin. Si l'une d'elles est
+   * déjà expédiée, le détachement laisse une commande "Expédié" sans aucune
+   * facture — on refuse plutôt que de laisser cette incohérence apparaître.
+   */
+  async remove(id: string) {
+    const group = await this.prisma.invoiceGroup.findUnique({
+      where: { id },
+      include: { orders: { select: { status: true } } },
+    });
+    if (!group) throw new NotFoundException("Groupe introuvable");
+
+    const hasShippedOrder = group.orders.some(
+      (o) => o.status === OrderStatus.EXPEDIE,
+    );
+    if (hasShippedOrder) {
+      throw new BadRequestException(
+        "Ce groupe contient au moins une commande expédiée et ne peut pas être supprimé : ses commandes seraient détachées sans laisser aucune facture.",
+      );
+    }
+
     return this.prisma.invoiceGroup.delete({
       where: { id },
     });

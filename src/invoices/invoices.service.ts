@@ -1,8 +1,12 @@
-import { Injectable } from "@nestjs/common";
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateInvoiceDto } from "./dto/create-invoice.dto";
 import { WeightsService } from "../weights/weights.service";
-import { BaseMetalType, TransactionType } from "@prisma/client";
+import { BaseMetalType, OrderStatus, TransactionType } from "@prisma/client";
 
 /**
  * Champs de la commande exposés aux écrans "facture".
@@ -140,8 +144,39 @@ export class InvoicesService {
 
   /**
    * Delete an invoice (admin)
+   *
+   * Refusé si la suppression aurait un impact réel : une facture émise se
+   * conserve normalement 10 ans et se corrige par un avoir, pas par un
+   * DELETE (art. L123-22 du Code de commerce). En l'absence de système
+   * d'avoir, on bloque au moins les deux cas où la suppression laisserait
+   * une incohérence silencieuse en base.
    */
   async delete(id: string) {
+    const invoice = await this.prisma.invoice.findUnique({
+      where: { id },
+      include: { order: { select: { status: true } } },
+    });
+    if (!invoice) throw new NotFoundException("Facture non trouvée");
+
+    if (invoice.order?.status === OrderStatus.EXPEDIE) {
+      throw new BadRequestException(
+        "Cette facture est liée à une commande expédiée et ne peut pas être supprimée : la commande resterait marquée comme expédiée sans aucune facture.",
+      );
+    }
+
+    // Pas de lien en base entre Invoice et le mouvement de compte poids
+    // qu'elle a pu déclencher (closeOrder, ou create() avec un dépôt métal) :
+    // les deux inscrivent le numéro de facture dans le libellé de la
+    // transaction, c'est le seul repère fiable disponible sans migration.
+    const linkedDebit = await this.prisma.transaction.findFirst({
+      where: { label: { contains: invoice.invoiceNumber } },
+    });
+    if (linkedDebit) {
+      throw new BadRequestException(
+        "Cette facture a déclenché un mouvement sur un compte poids et ne peut pas être supprimée : le mouvement resterait en base sans trace de la facture qui l'a créé.",
+      );
+    }
+
     return this.prisma.invoice.delete({
       where: { id },
     });
