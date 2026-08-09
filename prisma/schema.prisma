@@ -111,6 +111,7 @@ model MetalAccount {
 
   @@map("metal_accounts")
   @@index([userId])
+  @@unique([userId, metalType])
 }
 
 // Transactions de poids

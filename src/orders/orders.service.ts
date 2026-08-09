@@ -216,11 +216,14 @@ export class OrdersService {
               },
             });
 
-            // Update account balance
+            // Update account balance — decrement atomique (UPDATE ... SET
+            // balance = balance - x côté Postgres) plutôt que de réécrire une
+            // valeur calculée depuis le solde lu plus haut, qui perdrait un
+            // mouvement concurrent sur le même compte.
             await tx.metalAccount.update({
               where: { id: account.id },
               data: {
-                balance: Number(account.balance) - data.finalWeight,
+                balance: { decrement: data.finalWeight },
                 lastUpdate: new Date(),
               },
             });

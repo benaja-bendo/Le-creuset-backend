@@ -325,6 +325,14 @@ describe("OrdersService", () => {
           }),
         }),
       );
+      // decrement atomique : ne doit plus jamais envoyer une valeur déjà
+      // calculée depuis le solde lu plus haut (perdrait un mouvement
+      // concurrent sur le même compte).
+      expect(txMock.metalAccount.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ balance: { decrement: 10 } }),
+        }),
+      );
     });
 
     it("should throw NotFoundException if order not found", async () => {

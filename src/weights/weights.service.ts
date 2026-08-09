@@ -79,15 +79,15 @@ export class WeightsService {
       date?: Date;
     },
   ) {
-    let account = await this.prisma.metalAccount.findFirst({
-      where: { userId, metalType },
+    // upsert atomique : le findFirst+create précédent laissait une fenêtre où
+    // deux appels concurrents (ex. deux dépôts de facture au même moment)
+    // pouvaient chacun ne rien trouver et créer deux comptes pour le même
+    // métal. La contrainte @@unique([userId, metalType]) rend ça impossible.
+    const account = await this.prisma.metalAccount.upsert({
+      where: { userId_metalType: { userId, metalType } },
+      create: { userId, metalType, balance: 0 },
+      update: {},
     });
-
-    if (!account) {
-      account = await this.prisma.metalAccount.create({
-        data: { userId, metalType, balance: 0 },
-      });
-    }
 
     return this.addTransaction(account.id, data);
   }
@@ -104,35 +104,34 @@ export class WeightsService {
       date?: Date;
     },
   ) {
-    const account = await this.prisma.metalAccount.findUnique({
-      where: { id: accountId },
-    });
-
-    if (!account) throw new NotFoundException("Compte métal non trouvé");
-
     const amount = Number(data.amount);
-    const newBalance =
-      data.type === TransactionType.CREDIT
-        ? Number(account.balance) + amount
-        : Number(account.balance) - amount;
+    // { increment/decrement } se traduit par un UPDATE ... SET balance =
+    // balance ± x côté Postgres : deux mouvements concurrents sur le même
+    // compte s'additionnent correctement. Lire le solde puis réécrire une
+    // valeur calculée en mémoire (comme avant) perd l'un des deux si les
+    // écritures se chevauchent.
+    const delta = data.type === TransactionType.CREDIT ? amount : -amount;
 
     return this.prisma.$transaction(async (tx) => {
-      // Create transaction record
+      const account = await tx.metalAccount.findUnique({
+        where: { id: accountId },
+      });
+      if (!account) throw new NotFoundException("Compte métal non trouvé");
+
       await tx.transaction.create({
         data: {
           accountId,
           type: data.type,
-          amount: amount,
+          amount,
           label: data.label,
           date: data.date || new Date(),
         },
       });
 
-      // Update account balance
       return tx.metalAccount.update({
         where: { id: accountId },
         data: {
-          balance: newBalance,
+          balance: { increment: delta },
           lastUpdate: new Date(),
         },
       });

@@ -11,7 +11,7 @@ import { WeightsService } from "./weights.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
 import { Roles } from "../auth/roles.decorator";
-import { TransactionType } from "@prisma/client";
+import { AddTransactionDto } from "./dto/add-transaction.dto";
 
 @Controller("weights")
 @UseGuards(JwtAuthGuard)
@@ -54,13 +54,7 @@ export class WeightsController {
   @Roles("ADMIN")
   async addTransaction(
     @Param("id") id: string,
-    @Body()
-    dto: {
-      type: TransactionType;
-      amount: number;
-      label: string;
-      date?: string;
-    },
+    @Body() dto: AddTransactionDto,
   ) {
     return this.weightsService.addTransaction(id, {
       ...dto,
