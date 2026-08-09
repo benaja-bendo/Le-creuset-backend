@@ -43,6 +43,9 @@ describe("InvoiceGroupsService", () => {
           findMany: jest.fn().mockResolvedValue(orders),
           updateMany: jest.fn().mockResolvedValue({ count: 2 }),
         },
+        invoice: {
+          findMany: jest.fn().mockResolvedValue([]),
+        },
         invoiceGroup: {
           create: jest.fn().mockResolvedValue({ id: "group-1" }),
           findUnique: jest.fn().mockResolvedValue(group),
@@ -87,6 +90,27 @@ describe("InvoiceGroupsService", () => {
       ];
       const txMock = {
         order: { findMany: jest.fn().mockResolvedValue(orders) },
+      };
+      prisma.$transaction.mockImplementation((cb: any) => cb(txMock));
+
+      await expect(service.create(dto as any)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it("should throw BadRequestException if an order already has an individual invoice", async () => {
+      // Invoice et InvoiceGroup n'ont aucun lien : une commande déjà facturée
+      // individuellement (via POST /orders/:id/close) doit rester bloquée au
+      // groupement, sinon elle se retrouve facturée deux fois.
+      const orders = [
+        fakeOrder({ id: "order-1", invoiceGroupId: null }),
+        fakeOrder({ id: "order-2", invoiceGroupId: null }),
+      ];
+      const txMock = {
+        order: { findMany: jest.fn().mockResolvedValue(orders) },
+        invoice: {
+          findMany: jest.fn().mockResolvedValue([{ orderId: "order-1" }]),
+        },
       };
       prisma.$transaction.mockImplementation((cb: any) => cb(txMock));
 
@@ -148,6 +172,13 @@ describe("InvoiceGroupsService", () => {
         data: { notes: "updated" },
       });
       expect(result.notes).toBe("updated");
+    });
+
+    it("should reject a change to orderIds — composition not editable here", async () => {
+      await expect(
+        service.update("group-1", { orderIds: ["order-9"] } as any),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.invoiceGroup.update).not.toHaveBeenCalled();
     });
   });
 

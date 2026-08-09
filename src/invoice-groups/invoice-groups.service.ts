@@ -34,6 +34,20 @@ export class InvoiceGroupsService {
         );
       }
 
+      // Invoice et InvoiceGroup sont deux tables sans lien : ce contrôle ne
+      // voit pas une commande déjà couverte par une facture individuelle.
+      // Sans lui, une commande clôturée via POST /orders/:id/close peut être
+      // regroupée et refacturée une seconde fois.
+      const alreadyInvoiced = await tx.invoice.findMany({
+        where: { orderId: { in: dto.orderIds } },
+        select: { orderId: true },
+      });
+      if (alreadyInvoiced.length > 0) {
+        throw new BadRequestException(
+          "Certaines commandes ont déjà une facture individuelle et ne peuvent pas être groupées.",
+        );
+      }
+
       // 2. Create the invoice group
       const group = await tx.invoiceGroup.create({
         data: {
@@ -81,10 +95,16 @@ export class InvoiceGroupsService {
     return group;
   }
 
-  update(id: string, updateInvoiceGroupDto: UpdateInvoiceGroupDto) {
+  async update(id: string, updateInvoiceGroupDto: UpdateInvoiceGroupDto) {
+    const { orderIds, ...data } = updateInvoiceGroupDto;
+    if (orderIds) {
+      throw new BadRequestException(
+        "La composition d'un groupe de facturation ne peut pas être modifiée depuis cette route. Supprimez le groupe et recréez-le avec les bonnes commandes.",
+      );
+    }
     return this.prisma.invoiceGroup.update({
       where: { id },
-      data: updateInvoiceGroupDto,
+      data,
     });
   }
 

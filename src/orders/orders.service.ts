@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { orderReference } from "../common/order-ref";
 import { OrderStatus, TransactionType, MetalType } from "@prisma/client";
@@ -84,6 +88,16 @@ export class OrdersService {
     const order = await this.prisma.order.findUnique({ where: { id } });
     if (!order) throw new NotFoundException("Commande non trouvée");
 
+    // EXPEDIE ne se pose que via closeOrder (facture + débit poids + email
+    // dans la même transaction). Un simple changement de statut laisserait la
+    // commande "expédiée" sans rien de tout ça, et masquerait ensuite le vrai
+    // bouton de clôture côté front (qui se cache dès que status === EXPEDIE).
+    if (status === OrderStatus.EXPEDIE) {
+      throw new BadRequestException(
+        "Le statut EXPEDIE ne peut être atteint que via la clôture de commande (POST /orders/:id/close).",
+      );
+    }
+
     return this.prisma.order.update({
       where: { id },
       data: { status },
@@ -144,6 +158,11 @@ export class OrdersService {
     });
 
     if (!order) throw new NotFoundException("Commande non trouvée");
+    if (order.status === OrderStatus.EXPEDIE) {
+      throw new BadRequestException(
+        "Cette commande a déjà été clôturée : une facture et, le cas échéant, un débit poids existent déjà.",
+      );
+    }
 
     return this.prisma.$transaction(async (tx) => {
       // 1. Create the invoice

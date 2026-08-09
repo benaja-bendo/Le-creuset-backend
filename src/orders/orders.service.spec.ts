@@ -1,5 +1,5 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { NotFoundException } from "@nestjs/common";
+import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { OrdersService } from "./orders.service";
 import { PrismaService } from "../prisma/prisma.service";
 import {
@@ -125,6 +125,15 @@ describe("OrdersService", () => {
       await expect(
         service.updateStatus("nonexistent", "TIRAGE_OK" as any),
       ).rejects.toThrow(NotFoundException);
+    });
+
+    it("should reject EXPEDIE — only closeOrder may set it", async () => {
+      prisma.order.findUnique.mockResolvedValue(fakeOrder());
+
+      await expect(
+        service.updateStatus("order-1", "EXPEDIE" as any),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.order.update).not.toHaveBeenCalled();
     });
   });
 
@@ -329,6 +338,19 @@ describe("OrdersService", () => {
           invoiceFileUrl: "/x.pdf",
         }),
       ).rejects.toThrow(NotFoundException);
+    });
+
+    it("should reject closing an order that is already EXPEDIE", async () => {
+      const order = fakeOrder({ status: "EXPEDIE", user: fakeUser() });
+      prisma.order.findUnique.mockResolvedValue(order);
+
+      await expect(
+        service.closeOrder("order-1", {
+          invoiceNumber: "INV-004",
+          invoiceFileUrl: "/inv.pdf",
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.$transaction).not.toHaveBeenCalled();
     });
   });
 });
