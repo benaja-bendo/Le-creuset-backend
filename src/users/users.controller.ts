@@ -33,6 +33,14 @@ interface AuthRequest extends Request {
   user: JwtPayload;
 }
 
+const PROFILE_FIELDS = ["name", "companyName", "phone", "address"] as const;
+const PROFILE_FIELD_LABELS: Record<(typeof PROFILE_FIELDS)[number], string> = {
+  name: "Contact principal",
+  companyName: "Nom commercial",
+  phone: "Téléphone",
+  address: "Adresse",
+};
+
 @Controller("users")
 export class UsersController {
   constructor(
@@ -137,6 +145,39 @@ export class UsersController {
       return { id, status: "SUSPENDED" };
     }
     return { id, status: "PENDING" };
+  }
+
+  /**
+   * Édition du profil d'un client par un admin (nom, entreprise, téléphone,
+   * adresse — les mêmes champs que PATCH /me). Le client n'est pas consulté
+   * avant coup, mais reçoit un email listant ce qui a changé.
+   */
+  @Patch(":id/profile")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("ADMIN")
+  async updateUserProfile(
+    @Param("id") id: string,
+    @Body() dto: UpdateProfileDto,
+  ) {
+    const before = await this.usersService.getProfile(id);
+    const updated = await this.usersService.updateProfile(id, dto);
+
+    const changes = PROFILE_FIELDS.filter(
+      (field) => dto[field] !== undefined && dto[field] !== before[field],
+    ).map((field) => ({
+      label: PROFILE_FIELD_LABELS[field],
+      before: before[field] || "-",
+      after: dto[field] as string,
+    }));
+
+    if (changes.length > 0) {
+      await this.mailService.sendProfileUpdatedByAdminEmail(
+        before.email,
+        changes,
+      );
+    }
+
+    return updated;
   }
 
   @Patch(":id/documents")

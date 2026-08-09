@@ -92,6 +92,9 @@ export function createMockMailService() {
     sendOrderCompletedEmail: jest
       .fn()
       .mockResolvedValue({ id: "mail-5", success: true }),
+    sendProfileUpdatedByAdminEmail: jest
+      .fn()
+      .mockResolvedValue({ id: "mail-6", success: true }),
   };
 }
 

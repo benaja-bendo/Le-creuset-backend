@@ -212,4 +212,39 @@ export class MailService {
       text: `Votre commande ${orderRef} est terminée.\n\nFacture N° ${invoiceNumber}\n${amountText}\n\nConnectez-vous pour télécharger votre facture: ${frontendUrl}/client/invoices`,
     });
   }
+
+  /**
+   * Notifie un client qu'un admin a modifié ses informations à sa place.
+   * La modification n'est pas soumise à validation préalable du client (les
+   * corrections passent déjà par téléphone/email dans ce métier), mais il
+   * doit pouvoir la voir et signaler une erreur.
+   */
+  async sendProfileUpdatedByAdminEmail(
+    to: string,
+    changes: { label: string; before: string; after: string }[],
+  ): Promise<EmailResult> {
+    const rows = changes
+      .map((c) => `<li><strong>${c.label}</strong> : ${c.before} → ${c.after}</li>`)
+      .join("");
+
+    return this.sendEmail({
+      to,
+      subject: "Vos informations ont été mises à jour",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #1a1a1a;">Informations mises à jour</h1>
+          <p>Bonjour,</p>
+          <p>Un administrateur de La Grenaille a modifié les informations suivantes sur votre compte professionnel :</p>
+          <ul style="background: #f5f5f5; padding: 20px 20px 20px 40px; border-radius: 8px;">
+            ${rows}
+          </ul>
+          <p>Si vous n'êtes pas à l'origine de cette demande, contactez-nous dès que possible à <a href="mailto:contact@lagrenaille.fr">contact@lagrenaille.fr</a>.</p>
+          <p style="color: #666; font-size: 14px; margin-top: 30px;">
+            Cordialement,<br/>L'équipe La Grenaille
+          </p>
+        </div>
+      `,
+      text: `Informations mises à jour\n\n${changes.map((c) => `${c.label} : ${c.before} -> ${c.after}`).join("\n")}\n\nSi vous n'êtes pas à l'origine de cette demande, contactez-nous à contact@lagrenaille.fr.`,
+    });
+  }
 }
