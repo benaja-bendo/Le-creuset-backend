@@ -16,6 +16,7 @@ import { Roles } from "../auth/roles.decorator";
 import { OrderStatus } from "@prisma/client";
 import { CloseOrderDto } from "./dto/close-order.dto";
 import { MailService } from "../mail/mail.service";
+import { orderReference } from "../common/order-ref";
 
 @Controller("orders")
 @UseGuards(JwtAuthGuard)
@@ -131,7 +132,8 @@ export class OrdersController {
     if (result.order.user?.email) {
       await this.mailService.sendOrderCompletedEmail(
         result.order.user.email,
-        id.slice(-6),
+        // Référence lisible par le client : son numéro de commande, pas l'id technique.
+        orderReference(result.order),
         result.invoice.invoiceNumber,
         dto.finalAmount,
       );

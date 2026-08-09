@@ -116,7 +116,13 @@ describe("OrdersController", () => {
         "order-1",
         expect.objectContaining({ invoiceNumber: "INV-001" }),
       );
-      expect(mailService.sendOrderCompletedEmail).toHaveBeenCalled();
+      // La reference envoyee au client doit etre son numero de commande.
+      expect(mailService.sendOrderCompletedEmail).toHaveBeenCalledWith(
+        expect.any(String),
+        "CMD-000001",
+        expect.any(String),
+        expect.anything(),
+      );
       expect(result).toEqual(expect.objectContaining({ success: true }));
     });
   });

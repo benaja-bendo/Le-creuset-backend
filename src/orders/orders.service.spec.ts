@@ -227,6 +227,44 @@ describe("OrdersService", () => {
       );
     });
 
+    it("labels the metal transaction explicitly when the order has no number", async () => {
+      // Commandes antérieures à la migration add_order_number : orderNumber est
+      // NULL. On annonce l'absence de numéro plutôt que de présenter un
+      // fragment d'identifiant technique comme s'il en était un.
+      const order = fakeOrder({
+        orderNumber: null,
+        user: fakeUser(),
+        materialType: "OR_JAUNE_750",
+      });
+      const account = fakeMetalAccount({ metalType: "OR_FIN", balance: 100 });
+
+      const txMock = createMockPrismaService();
+      txMock.order.findUnique.mockResolvedValue(order);
+      txMock.invoice.create.mockResolvedValue(fakeInvoice());
+      txMock.order.update.mockResolvedValue({ ...order, status: "EXPEDIE" });
+      txMock.metalAccount.findFirst.mockResolvedValue(account);
+      txMock.transaction.create.mockResolvedValue({});
+      txMock.metalAccount.update.mockResolvedValue({ ...account, balance: 90 });
+      prisma.order.findUnique.mockResolvedValue(order);
+      prisma.$transaction.mockImplementation((cb: any) => cb(txMock));
+
+      await service.closeOrder("order-1", {
+        invoiceNumber: "INV-003",
+        invoiceFileUrl: "/inv.pdf",
+        finalWeight: 10,
+        debitWeightAccount: true,
+        metalType: "OR_JAUNE_750",
+      });
+
+      expect(txMock.transaction.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            label: "Commande Sans n° (RDER-1) - INV-003",
+          }),
+        }),
+      );
+    });
+
     it("should debit metal account when requested", async () => {
       const order = fakeOrder({
         user: fakeUser(),
@@ -259,6 +297,15 @@ describe("OrdersService", () => {
       expect(txMock.metalAccount.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { userId: order.userId, metalType: "OR_FIN" },
+        }),
+      );
+      // Le libellé est persisté en base et lu par le client dans son historique
+      // de compte poids : il doit porter le numéro de commande, pas l'id.
+      expect(txMock.transaction.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            label: "Commande CMD-000001 - INV-002",
+          }),
         }),
       );
       expect(txMock.transaction.create).toHaveBeenCalledWith(

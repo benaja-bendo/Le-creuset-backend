@@ -188,6 +188,7 @@ export function fakeUser(overrides: Record<string, any> = {}) {
 export function fakeOrder(overrides: Record<string, any> = {}) {
   return {
     id: "order-1",
+    orderNumber: "CMD-000001",
     userId: "user-1",
     status: "EN_ATTENTE",
     stlFileUrl: null,

@@ -32,11 +32,19 @@ describe("InvoicesService", () => {
 
       const result = await service.findAll();
 
+      // Le select imbriqué est une liste blanche : sans assertion sur sa forme,
+      // retirer orderNumber ou notes repasserait vert alors que l'API cesse de
+      // les renvoyer — c'est exactement la régression signalée par le client.
       expect(prisma.invoice.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           orderBy: { createdAt: "desc" },
           include: expect.objectContaining({
-            order: expect.any(Object),
+            order: {
+              select: expect.objectContaining({
+                orderNumber: true,
+                notes: true,
+              }),
+            },
             user: expect.any(Object),
           }),
         }),
@@ -54,6 +62,14 @@ describe("InvoicesService", () => {
       expect(prisma.invoice.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { userId: "user-1" },
+          include: expect.objectContaining({
+            order: {
+              select: expect.objectContaining({
+                orderNumber: true,
+                notes: true,
+              }),
+            },
+          }),
         }),
       );
     });

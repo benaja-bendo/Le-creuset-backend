@@ -183,12 +183,12 @@ export class MailService {
 
     return this.sendEmail({
       to,
-      subject: `Votre commande #${orderRef} est terminée - Facture disponible`,
+      subject: `Votre commande ${orderRef} est terminée - Facture disponible`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h1 style="color: #1a1a1a;">Votre commande est terminée !</h1>
           <p>Bonjour,</p>
-          <p>Nous avons le plaisir de vous informer que votre commande <strong>#${orderRef}</strong> a été traitée avec succès.</p>
+          <p>Nous avons le plaisir de vous informer que votre commande <strong>${orderRef}</strong> a été traitée avec succès.</p>
           
           <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
             <h3 style="margin-top: 0; color: #333;">Facture N° ${invoiceNumber}</h3>
@@ -209,7 +209,7 @@ export class MailService {
           </p>
         </div>
       `,
-      text: `Votre commande #${orderRef} est terminée.\n\nFacture N° ${invoiceNumber}\n${amountText}\n\nConnectez-vous pour télécharger votre facture: ${frontendUrl}/client/invoices`,
+      text: `Votre commande ${orderRef} est terminée.\n\nFacture N° ${invoiceNumber}\n${amountText}\n\nConnectez-vous pour télécharger votre facture: ${frontendUrl}/client/invoices`,
     });
   }
 }

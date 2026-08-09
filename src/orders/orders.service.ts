@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
+import { orderReference } from "../common/order-ref";
 import { OrderStatus, TransactionType, MetalType } from "@prisma/client";
 
 @Injectable()
@@ -188,7 +189,10 @@ export class OrdersService {
                 accountId: account.id,
                 type: TransactionType.DEBIT,
                 amount: data.finalWeight,
-                label: `Commande #${orderId.slice(-6)} - ${data.invoiceNumber}`,
+                // Libellé persisté en base : on utilise le numéro de commande
+                // métier, pas la queue du cuid, sinon le client lit dans son
+                // historique de compte poids une référence qui n'existe pas.
+                label: `Commande ${orderReference(order)} - ${data.invoiceNumber}`,
                 date: new Date(),
               },
             });

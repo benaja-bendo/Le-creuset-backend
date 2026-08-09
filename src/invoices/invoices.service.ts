@@ -4,6 +4,23 @@ import { CreateInvoiceDto } from "./dto/create-invoice.dto";
 import { WeightsService } from "../weights/weights.service";
 import { BaseMetalType, TransactionType } from "@prisma/client";
 
+/**
+ * Champs de la commande exposés aux écrans "facture".
+ *
+ * ATTENTION : un `select` imbriqué est une LISTE BLANCHE, contrairement à un
+ * `include` qui renvoie tous les scalaires. Retirer `orderNumber` ou `notes`
+ * d'ici les fait disparaître de l'API, et le front n'a alors plus rien à
+ * afficher — c'est l'origine exacte du bug de numéros de commande signalé par
+ * le client. Garder les quatre chemins de lecture sur cette même forme.
+ */
+const ORDER_SUMMARY_SELECT = {
+  id: true,
+  orderNumber: true,
+  notes: true,
+  status: true,
+  estimatedPrice: true,
+} as const;
+
 @Injectable()
 export class InvoicesService {
   constructor(
@@ -18,13 +35,7 @@ export class InvoicesService {
     return this.prisma.invoice.findMany({
       orderBy: { createdAt: "desc" },
       include: {
-        order: {
-          select: {
-            id: true,
-            status: true,
-            estimatedPrice: true,
-          },
-        },
+        order: { select: ORDER_SUMMARY_SELECT },
         user: {
           select: {
             id: true,
@@ -44,13 +55,7 @@ export class InvoicesService {
       where: { userId },
       orderBy: { createdAt: "desc" },
       include: {
-        order: {
-          select: {
-            id: true,
-            status: true,
-            estimatedPrice: true,
-          },
-        },
+        order: { select: ORDER_SUMMARY_SELECT },
       },
     });
   }
@@ -78,6 +83,10 @@ export class InvoicesService {
 
   /**
    * Get invoices for a specific order
+   *
+   * Volontairement sans `include` : cette route n'a aucun consommateur front et
+   * `GET /invoices/order/:orderId` ne vérifie pas la propriété de la commande —
+   * inutile d'y élargir la charge utile tant que ce contrôle manque.
    */
   async findByOrderId(orderId: string) {
     return this.prisma.invoice.findMany({
@@ -101,12 +110,7 @@ export class InvoicesService {
         notes: dto.notes,
       },
       include: {
-        order: {
-          select: {
-            id: true,
-            status: true,
-          },
-        },
+        order: { select: ORDER_SUMMARY_SELECT },
         user: {
           select: {
             id: true,
