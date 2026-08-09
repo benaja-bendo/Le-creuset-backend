@@ -72,9 +72,9 @@ npx jest
 
 - **`.env.example` est désaligné de `docker-compose.local.yml`.** L'exemple donne `lecreuset:lecreuset_secret@…/lecreuset`, le compose crée `root`/`root` sur la base `lagrenaille-db`. Corriger `DATABASE_URL` après un `cp .env.example .env` :
   ```
-  DATABASE_URL="postgresql://root:root@localhost:5433/lagrenaille-db?schema=public"
+  DATABASE_URL="postgresql://root:root@localhost:15433/lagrenaille-db?schema=public"
   ```
-- Le port `5433` peut être squatté par un autre conteneur Postgres.
+- **Ports Postgres/MinIO volontairement décalés** (`15433`, `19002`, `19003`) : un autre projet local (mibeko) squattait `5433`/`9000`/`9001`, ce qui faisait planter Prisma au boot sans erreur claire (connexion silencieuse à la mauvaise base). Si le conflit ressurgit sur les nouveaux ports, changer le mapping dans `docker-compose.local.yml` **et** `DATABASE_URL`/`MINIO_PORT` dans `.env` ensemble.
 - `prisma generate` marche hors-ligne ; `prisma migrate deploy` exige la base démarrée.
 - **`pnpm test:e2e` est déclaré mais le dossier `test/` n'existe pas.** Il n'y a aucun test e2e.
 - **Aucun seed** : `prisma:seed` est déclaré, aucun fichier de seed n'existe. Voir [`docs/03-dev-local.md`](docs/03-dev-local.md) pour créer un premier admin.

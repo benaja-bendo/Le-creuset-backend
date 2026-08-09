@@ -16,7 +16,7 @@ API REST développée avec NestJS, Prisma et PostgreSQL pour Lagrenaille.
 docker compose -f docker-compose.local.yml up
 ```
 - **API** : [http://localhost:3000](http://localhost:3000)
-- **MinIO Console** : [http://localhost:9003](http://localhost:9003)
+- **MinIO Console** : [http://localhost:19003](http://localhost:19003)
 
 #### Lancer le serveur de développement (sans DB/MinIO)
 

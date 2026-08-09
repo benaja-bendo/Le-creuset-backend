@@ -15,10 +15,12 @@ docker compose -f docker-compose.local.yml up -d
 
 | Service | Conteneur | Ports | Identifiants |
 |---|---|---|---|
-| PostgreSQL 16 | `lagrenaille-back` | `5433` → 5432 | `root` / `root`, base `lagrenaille-db` |
-| MinIO | `lagrenaille-minio` | `9002` (API), `9003` (console) | `root` / `password` |
+| PostgreSQL 16 | `lagrenaille-back` | `15433` → 5432 | `root` / `root`, base `lagrenaille-db` |
+| MinIO | `lagrenaille-minio` | `19002` (API), `19003` (console) | `root` / `password` |
 
-Console MinIO : `http://localhost:9003`.
+Console MinIO : `http://localhost:19003`.
+
+> Ports volontairement loin des défauts (`5432`/`5433`, `9000`/`9001`) : un autre projet local peut squatter ces ports, et Prisma se connecte alors silencieusement à la mauvaise base au lieu d'échouer clairement.
 
 Le bloc `api` du compose est commenté — l'API tourne en local hors Docker, en watch.
 
@@ -28,10 +30,10 @@ Le bloc `api` du compose est commenté — l'API tourne en local hors Docker, en
 cp .env.example .env
 ```
 
-⚠️ **Corrigez `DATABASE_URL` immédiatement.** Le `.env.example` contient `postgresql://lecreuset:lecreuset_secret@localhost:5433/lecreuset`, qui **ne correspond pas** au compose. La bonne valeur :
+⚠️ **Corrigez `DATABASE_URL` immédiatement.** Le `.env.example` contient `postgresql://lecreuset:lecreuset_secret@localhost:15433/lecreuset`, qui **ne correspond pas** au compose (utilisateur/base). La bonne valeur :
 
 ```
-DATABASE_URL="postgresql://root:root@localhost:5433/lagrenaille-db?schema=public"
+DATABASE_URL="postgresql://root:root@localhost:15433/lagrenaille-db?schema=public"
 ```
 
 | Variable | Rôle | Valeur locale |
@@ -66,7 +68,7 @@ Le front attend `VITE_API_URL=http://localhost:3000/api` — **avec** le suffixe
 | Symptôme | Cause | Solution |
 |---|---|---|
 | `P1001: can't reach database` | `.env.example` désaligné du compose | corriger `DATABASE_URL` (`root`/`root`, base `lagrenaille-db`) |
-| Port 5433 déjà pris | un autre conteneur Postgres le squatte | `docker ps` puis stopper, ou changer le mapping |
+| Port 15433 déjà pris | un autre conteneur Postgres le squatte | `docker ps` puis stopper, ou changer le mapping (déjà décalé une fois pour cette raison) |
 | `@prisma/client did not initialize` | client non généré | `pnpm prisma:generate` (marche hors-ligne) |
 | `prisma migrate deploy` échoue | base non démarrée | lancer le compose d'abord |
 | Le lint casse sur des types Prisma | client non généré avant le lint | `pnpm prisma:generate` — c'est aussi l'ordre appliqué en CI |

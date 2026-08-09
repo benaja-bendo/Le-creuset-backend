@@ -35,8 +35,8 @@ Pour travailler localement avec une base de données et MinIO dédiés :
    docker compose -f docker-compose.local.yml up
    ```
    - **API** : `http://localhost:3000`
-   - **Postgres** : Port `5433` (User: `lecreuset`, Pass: `lecreuset_secret`)
-   - **MinIO Console** : `http://localhost:9003` (User: `minioadmin`, Pass: `minioadmin123`)
+   - **Postgres** : Port `15433` (User: `lecreuset`, Pass: `lecreuset_secret`)
+   - **MinIO Console** : `http://localhost:19003` (User: `minioadmin`, Pass: `minioadmin123`)
 
 ## Secrets Requis (GitHub Actions)
 
