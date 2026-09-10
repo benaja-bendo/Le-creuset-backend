@@ -109,6 +109,22 @@ describe("UsersService", () => {
         }),
       );
     });
+
+    it("should filter by a comma-separated status list", async () => {
+      prisma.user.findMany.mockResolvedValue([]);
+      prisma.user.count.mockResolvedValue(0);
+
+      await service.findAll({ status: "ACTIVE,SUSPENDED" });
+
+      expect(prisma.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { status: { in: ["ACTIVE", "SUSPENDED"] } },
+        }),
+      );
+      expect(prisma.user.count).toHaveBeenCalledWith({
+        where: { status: { in: ["ACTIVE", "SUSPENDED"] } },
+      });
+    });
   });
 
   describe("findPending", () => {

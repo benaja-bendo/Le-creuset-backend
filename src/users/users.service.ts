@@ -62,22 +62,35 @@ export class UsersService {
    * bibliothèque) veulent TOUS les clients pour peupler un menu déroulant —
    * ceux-là passent explicitement une limite haute plutôt que de subir le
    * défaut de 20.
+   *
+   * `status` accepte une liste séparée par des virgules (ex. "ACTIVE,SUSPENDED")
+   * — l'onglet "Utilisateurs actifs" d'UsersPending.tsx filtrait ces deux
+   * statuts en mémoire après avoir chargé tout le monde ; sans ce filtre côté
+   * serveur, paginer aurait rendu ce filtre incohérent avec le total affiché.
    */
   async findAll(
-    query: { page?: number; limit?: number; search?: string } = {},
+    query: { page?: number; limit?: number; search?: string; status?: string } = {},
   ) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const term = query.search?.trim();
-    const where: Prisma.UserWhereInput = term
-      ? {
-          OR: [
-            { companyName: { contains: term, mode: "insensitive" } },
-            { email: { contains: term, mode: "insensitive" } },
-            { name: { contains: term, mode: "insensitive" } },
-          ],
-        }
-      : {};
+    const statuses = query.status
+      ?.split(",")
+      .map((s) => s.trim())
+      .filter(Boolean) as UserStatus[] | undefined;
+
+    const where: Prisma.UserWhereInput = {
+      ...(statuses?.length ? { status: { in: statuses } } : {}),
+      ...(term
+        ? {
+            OR: [
+              { companyName: { contains: term, mode: "insensitive" } },
+              { email: { contains: term, mode: "insensitive" } },
+              { name: { contains: term, mode: "insensitive" } },
+            ],
+          }
+        : {}),
+    };
 
     const [items, total] = await Promise.all([
       this.prisma.user.findMany({
