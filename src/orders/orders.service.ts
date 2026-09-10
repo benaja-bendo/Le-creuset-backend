@@ -108,7 +108,19 @@ export class OrdersService {
     return this.prisma.order.findUnique({
       where: { id },
       include: {
-        user: true,
+        // `include: { user: true }` renvoyait tous les scalaires de User —
+        // passwordHash, address, kbisFileUrl, customsFileUrl compris —
+        // jusqu'au client connecté via GET /orders/:id. Liste blanche
+        // explicite, alignée sur ce que consomment admin/OrderDetail.tsx et
+        // client/OrderDetail.tsx.
+        user: {
+          select: {
+            id: true,
+            email: true,
+            companyName: true,
+            phone: true,
+          },
+        },
         invoices: true,
       },
     });

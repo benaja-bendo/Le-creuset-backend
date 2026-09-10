@@ -1,4 +1,5 @@
 import { Test, TestingModule } from "@nestjs/testing";
+import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { OrdersController } from "./orders.controller";
 import { OrdersService } from "./orders.service";
 import { MailService } from "../mail/mail.service";
@@ -62,6 +63,48 @@ describe("OrdersController", () => {
     it("should return all orders", async () => {
       await controller.getAllOrders();
       expect(ordersService.findAll).toHaveBeenCalled();
+    });
+  });
+
+  describe("GET /:id", () => {
+    it("should return the order to its own owner", async () => {
+      ordersService.findById.mockResolvedValue(fakeOrder({ userId: "user-1" }));
+      const req = mockReq(); // user-1, CLIENT
+
+      const result = await controller.getById("order-1", req);
+
+      expect(result).toEqual(fakeOrder({ userId: "user-1" }));
+    });
+
+    it("should let an admin read any order", async () => {
+      ordersService.findById.mockResolvedValue(
+        fakeOrder({ userId: "someone-else" }),
+      );
+      const req = { user: { id: "admin-1", role: "ADMIN" } };
+
+      await expect(controller.getById("order-1", req)).resolves.toEqual(
+        fakeOrder({ userId: "someone-else" }),
+      );
+    });
+
+    it("should reject a client who does not own the order", async () => {
+      ordersService.findById.mockResolvedValue(
+        fakeOrder({ userId: "someone-else" }),
+      );
+      const req = mockReq(); // user-1, CLIENT
+
+      await expect(controller.getById("order-1", req)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it("should throw NotFoundException if the order does not exist", async () => {
+      ordersService.findById.mockResolvedValue(null);
+      const req = mockReq();
+
+      await expect(controller.getById("order-1", req)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 

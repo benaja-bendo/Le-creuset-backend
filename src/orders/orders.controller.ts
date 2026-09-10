@@ -2,7 +2,9 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
+  NotFoundException,
   Param,
   Patch,
   Post,
@@ -79,9 +81,20 @@ export class OrdersController {
     return this.ordersService.findAll();
   }
 
+  /**
+   * Cette route n'a que JwtAuthGuard : n'importe quel client connecté
+   * disposant d'un id de commande pouvait lire la fiche complète d'un autre
+   * client. Le contrôle de propriété doit donc vivre ici, pas dans un
+   * @Roles — un client légitime doit garder accès à SA commande.
+   */
   @Get(":id")
-  async getById(@Param("id") id: string) {
-    return this.ordersService.findById(id);
+  async getById(@Param("id") id: string, @Req() req: any) {
+    const order = await this.ordersService.findById(id);
+    if (!order) throw new NotFoundException("Commande non trouvée");
+    if (order.userId !== req.user.id && req.user.role !== "ADMIN") {
+      throw new ForbiddenException("Vous n'avez pas accès à cette commande");
+    }
+    return order;
   }
 
   @Patch(":id/status")

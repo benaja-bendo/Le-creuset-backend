@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateInvoiceDto } from "./dto/create-invoice.dto";
@@ -88,11 +89,32 @@ export class InvoicesService {
   /**
    * Get invoices for a specific order
    *
-   * Volontairement sans `include` : cette route n'a aucun consommateur front et
-   * `GET /invoices/order/:orderId` ne vérifie pas la propriété de la commande —
-   * inutile d'y élargir la charge utile tant que ce contrôle manque.
+   * Consommée par client/OrderDetail.tsx : un client lit ici les factures de
+   * SA commande. Sans le contrôle ci-dessous, n'importe quel client connecté
+   * pouvait lire les factures de n'importe quelle commande en devinant son
+   * id — la réponse ne contient pas de champ user, mais amount/fileUrl/notes
+   * appartiennent à un autre client. Volontairement sans `include` par
+   * ailleurs : cette route n'a pas besoin des infos de commande, déjà
+   * chargées séparément par son unique consommateur.
    */
-  async findByOrderId(orderId: string) {
+  async findByOrderId(
+    orderId: string,
+    requestingUser: { id: string; role: string },
+  ) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { userId: true },
+    });
+    if (!order) throw new NotFoundException("Commande non trouvée");
+    if (
+      order.userId !== requestingUser.id &&
+      requestingUser.role !== "ADMIN"
+    ) {
+      throw new ForbiddenException(
+        "Vous n'avez pas accès aux factures de cette commande",
+      );
+    }
+
     return this.prisma.invoice.findMany({
       where: { orderId },
       orderBy: { createdAt: "desc" },

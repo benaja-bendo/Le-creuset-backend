@@ -142,15 +142,22 @@ describe("OrdersService", () => {
   /* ================================================================ */
 
   describe("findById", () => {
-    it("should return order with relations", async () => {
+    it("should select only safe user fields, never passwordHash", async () => {
       prisma.order.findUnique.mockResolvedValue(fakeOrder());
       await service.findById("order-1");
-      expect(prisma.order.findUnique).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: "order-1" },
-          include: expect.objectContaining({ user: true }),
-        }),
-      );
+
+      const call = prisma.order.findUnique.mock.calls[0][0];
+      expect(call.where).toEqual({ id: "order-1" });
+      expect(call.include.user).toEqual({
+        select: {
+          id: true,
+          email: true,
+          companyName: true,
+          phone: true,
+        },
+      });
+      expect(call.include.user.select.passwordHash).toBeUndefined();
+      expect(call.include.invoices).toBe(true);
     });
   });
 

@@ -1,5 +1,9 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { BadRequestException, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from "@nestjs/common";
 import { InvoicesService } from "./invoices.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { WeightsService } from "../weights/weights.service";
@@ -92,16 +96,49 @@ describe("InvoicesService", () => {
   });
 
   describe("findByOrderId", () => {
-    it("should return invoices for a specific order", async () => {
+    it("should return invoices when the requester owns the order", async () => {
+      prisma.order.findUnique.mockResolvedValue({ userId: "user-1" });
       prisma.invoice.findMany.mockResolvedValue([fakeInvoice()]);
 
-      await service.findByOrderId("order-1");
+      await service.findByOrderId("order-1", {
+        id: "user-1",
+        role: "CLIENT",
+      });
 
       expect(prisma.invoice.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { orderId: "order-1" },
         }),
       );
+    });
+
+    it("should allow an admin to read invoices for any order", async () => {
+      prisma.order.findUnique.mockResolvedValue({ userId: "someone-else" });
+      prisma.invoice.findMany.mockResolvedValue([fakeInvoice()]);
+
+      await expect(
+        service.findByOrderId("order-1", { id: "admin-1", role: "ADMIN" }),
+      ).resolves.toEqual([fakeInvoice()]);
+    });
+
+    it("should reject a client who does not own the order", async () => {
+      prisma.order.findUnique.mockResolvedValue({ userId: "someone-else" });
+
+      await expect(
+        service.findByOrderId("order-1", { id: "user-1", role: "CLIENT" }),
+      ).rejects.toThrow(ForbiddenException);
+      expect(prisma.invoice.findMany).not.toHaveBeenCalled();
+    });
+
+    it("should throw NotFoundException if the order does not exist", async () => {
+      prisma.order.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.findByOrderId("nonexistent", {
+          id: "user-1",
+          role: "CLIENT",
+        }),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 

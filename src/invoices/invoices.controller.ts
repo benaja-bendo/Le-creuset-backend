@@ -57,17 +57,26 @@ export class InvoicesController {
   }
 
   /**
-   * Get invoices for a specific order
+   * Get invoices for a specific order (contrôle propriétaire-ou-admin fait
+   * dans le service, qui a besoin de lire order.userId pour trancher)
    */
   @Get("order/:orderId")
-  async findByOrder(@Param("orderId") orderId: string) {
-    return this.invoicesService.findByOrderId(orderId);
+  async findByOrder(
+    @Param("orderId") orderId: string,
+    @Req() req: AuthRequest,
+  ) {
+    return this.invoicesService.findByOrderId(orderId, req.user);
   }
 
   /**
-   * Get invoice by ID
+   * Get invoice by ID — aucun consommateur front actuellement (vérifié :
+   * seul un DELETE /invoices/:id existe côté front, route distincte déjà
+   * gated ADMIN plus bas). Restreint à ADMIN plutôt que d'ajouter un contrôle
+   * propriétaire pour une route que personne n'appelle.
    */
   @Get(":id")
+  @UseGuards(RolesGuard)
+  @Roles("ADMIN")
   async findById(@Param("id") id: string) {
     return this.invoicesService.findById(id);
   }

@@ -53,9 +53,13 @@ describe("InvoicesController", () => {
   });
 
   describe("GET /order/:orderId", () => {
-    it("should return invoices for an order", async () => {
-      await controller.findByOrder("order-1");
-      expect(invoicesService.findByOrderId).toHaveBeenCalledWith("order-1");
+    it("should forward the requesting user for the ownership check", async () => {
+      const req = mockReq();
+      await controller.findByOrder("order-1", req as any);
+      expect(invoicesService.findByOrderId).toHaveBeenCalledWith(
+        "order-1",
+        req.user,
+      );
     });
   });
 
