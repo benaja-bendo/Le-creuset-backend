@@ -105,12 +105,13 @@ jobs:
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io \
               -u "${{ github.actor }}" --password-stdin
 
-            cat > .env <<EOF
+            # Les secrets sont écrits littéralement : un mot de passe SMTP peut
+            # contenir `$` et ne doit jamais être développé par le shell distant.
+            cat > .env <<'EOF'
             NODE_ENV=production
             PORT=${{ secrets.PORT }}
             FRONTEND_URL=${{ secrets.FRONTEND_URL }}
             VITE_DOMAIN_NAME=${{ secrets.VITE_DOMAIN_NAME }}
-            GITHUB_REPOSITORY=$REPO_LC
 
             # Base de données
             DATABASE_URL="${{ secrets.DATABASE_URL }}"
@@ -145,6 +146,9 @@ jobs:
             JWT_SECRET="${{ secrets.JWT_SECRET }}"
             JWT_EXPIRES_IN="${{ secrets.JWT_EXPIRES_IN }}"
             EOF
+            # REPO_LC est produit localement dans le workflow, donc on l'ajoute
+            # après le heredoc protégé.
+            printf 'GITHUB_REPOSITORY=%s\n' "$REPO_LC" >> .env
 
             MAX_RETRIES=5
             RETRY_COUNT=0
