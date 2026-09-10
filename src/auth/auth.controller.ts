@@ -1,10 +1,17 @@
 import { Body, Controller, Get, Post, Req, UseGuards } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { Throttle } from "@nestjs/throttler";
 import { AuthService } from "./auth.service";
 import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
 import { MailService } from "../mail/mail.service";
 import { JwtAuthGuard } from "./jwt-auth.guard";
+
+// Plafond resserré par rapport au défaut global (100/min, app.module.ts) :
+// ces trois routes sont ouvertes sans authentification et chacune a un coût
+// réel en cas d'abus — brute-force de mot de passe (login), spam d'emails
+// vers ADMIN_EMAIL (register) ou vers un tiers (forgot-password). Audit §4.3.
+const AUTH_THROTTLE = { default: { limit: 5, ttl: 60_000 } };
 
 @Controller("auth")
 export class AuthController {
@@ -15,6 +22,7 @@ export class AuthController {
   ) {}
 
   @Post("forgot-password")
+  @Throttle(AUTH_THROTTLE)
   async forgotPassword(@Body("email") email: string) {
     if (!email) return { ok: true };
     const resetLink = await this.authService.generatePasswordResetLink(email);
@@ -41,6 +49,7 @@ export class AuthController {
   }
 
   @Post("register")
+  @Throttle(AUTH_THROTTLE)
   async register(@Body() dto: RegisterDto) {
     const result = await this.authService.register(dto);
     await this.mailService.sendEmail({
@@ -64,6 +73,7 @@ export class AuthController {
   }
 
   @Post("login")
+  @Throttle(AUTH_THROTTLE)
   async login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
   }

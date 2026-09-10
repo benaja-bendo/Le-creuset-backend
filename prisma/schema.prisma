@@ -123,6 +123,11 @@ model Transaction {
   amount    Decimal        @db.Decimal(10, 3)
   label     String
   date      DateTime
+  // Date de saisie réelle du mouvement, distincte de `date` (fournie par
+  // l'appelant, potentiellement une correction rétroactive). Sert aussi de
+  // départage déterministe pour `orderBy: { date: 'desc' }` quand plusieurs
+  // mouvements partagent la même `date` (saisie à la journée côté front).
+  createdAt DateTime       @default(now()) @map("created_at")
 
   @@map("transactions")
   @@index([accountId])

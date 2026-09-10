@@ -38,6 +38,21 @@ describe("WeightsService", () => {
       );
       expect(result).toEqual(accounts);
     });
+
+    it("should break ties on same-day `date` with `createdAt`", async () => {
+      // `date` est saisie à la journée côté front (YYYY-MM-DD) : deux
+      // mouvements du même jour n'ont pas d'ordre déterministe sans
+      // départage sur `createdAt` (date de saisie réelle).
+      prisma.metalAccount.findMany.mockResolvedValue([fakeMetalAccount()]);
+
+      await service.getUserAccounts("user-1");
+
+      const call = prisma.metalAccount.findMany.mock.calls[0][0];
+      expect(call.include.transactions.orderBy).toEqual([
+        { date: "desc" },
+        { createdAt: "desc" },
+      ]);
+    });
   });
 
   describe("getAllAccounts", () => {

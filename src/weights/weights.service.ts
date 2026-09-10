@@ -24,7 +24,11 @@ export class WeightsService {
       include: {
         transactions: {
           take: 10,
-          orderBy: { date: "desc" },
+          // `date` seule ne suffit pas : saisie à la journée côté front
+          // (YYYY-MM-DD), deux mouvements du même jour n'ont pas d'ordre
+          // déterministe entre eux sans départage. `createdAt` (date de
+          // saisie réelle) sert de tiebreaker.
+          orderBy: [{ date: "desc" }, { createdAt: "desc" }],
         },
       },
     });
