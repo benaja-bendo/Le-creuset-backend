@@ -130,9 +130,16 @@ jobs:
             MINIO_SECRET_KEY="${{ secrets.MINIO_SECRET_KEY }}"
             MINIO_BUCKET="${{ secrets.MINIO_BUCKET }}"
             
-            # Email (Resend)
-            RESEND_API_KEY="${{ secrets.RESEND_API_KEY }}"
-            EMAIL_FROM="${{ secrets.EMAIL_FROM }}"
+            # Email (SMTP Infomaniak)
+            # Ne pas injecter RESEND_API_KEY : MailService donne priorité à
+            # Resend lorsqu'elle est présente. La production utilise SMTP.
+            ADMIN_EMAIL="${{ secrets.ADMIN_EMAIL }}"
+            MAIL_FROM="${{ secrets.MAIL_FROM }}"
+            SMTP_HOST="${{ secrets.SMTP_HOST }}"
+            SMTP_PORT="${{ secrets.SMTP_PORT }}"
+            SMTP_USER="${{ secrets.SMTP_USER }}"
+            SMTP_PASSWORD="${{ secrets.SMTP_PASSWORD }}"
+            SMTP_SECURE="${{ secrets.SMTP_SECURE }}"
 
             # Auth (JWT)
             JWT_SECRET="${{ secrets.JWT_SECRET }}"
