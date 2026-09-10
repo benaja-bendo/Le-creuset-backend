@@ -38,19 +38,57 @@ describe("WeightsService", () => {
       );
       expect(result).toEqual(accounts);
     });
+
+    it("should break ties on same-day `date` with `createdAt`", async () => {
+      // `date` est saisie à la journée côté front (YYYY-MM-DD) : deux
+      // mouvements du même jour n'ont pas d'ordre déterministe sans
+      // départage sur `createdAt` (date de saisie réelle).
+      prisma.metalAccount.findMany.mockResolvedValue([fakeMetalAccount()]);
+
+      await service.getUserAccounts("user-1");
+
+      const call = prisma.metalAccount.findMany.mock.calls[0][0];
+      expect(call.include.transactions.orderBy).toEqual([
+        { date: "desc" },
+        { createdAt: "desc" },
+      ]);
+    });
   });
 
   describe("getAllAccounts", () => {
-    it("should return all accounts sorted by balance asc", async () => {
-      prisma.metalAccount.findMany.mockResolvedValue([]);
+    it("should paginate by client, then return that page's accounts sorted by balance asc", async () => {
+      prisma.user.findMany.mockResolvedValue([{ id: "user-1" }, { id: "user-2" }]);
+      prisma.user.count.mockResolvedValue(2);
+      prisma.metalAccount.findMany.mockResolvedValue([fakeMetalAccount()]);
 
-      await service.getAllAccounts();
+      const result = await service.getAllAccounts();
 
+      // La pagination porte sur les CLIENTS (jusqu'à 3 comptes chacun) pour ne
+      // jamais couper un client au milieu d'une page — pas sur les lignes de
+      // compte brutes.
+      expect(prisma.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            metalAccounts: { some: { metalType: { in: expect.any(Array) } } },
+          }),
+          skip: 0,
+          take: 20,
+        }),
+      );
       expect(prisma.metalAccount.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
+          where: expect.objectContaining({
+            userId: { in: ["user-1", "user-2"] },
+          }),
           orderBy: { balance: "asc" },
         }),
       );
+      expect(result).toEqual({
+        items: [fakeMetalAccount()],
+        total: 2,
+        page: 1,
+        limit: 20,
+      });
     });
   });
 
@@ -74,16 +112,14 @@ describe("WeightsService", () => {
   });
 
   describe("addTransaction", () => {
-    it("should add a CREDIT transaction and increase balance", async () => {
+    it("should add a CREDIT transaction and increment the balance atomically", async () => {
       const account = fakeMetalAccount({ balance: 100 });
-      prisma.metalAccount.findUnique.mockResolvedValue(account);
-
-      // Mock the $transaction to execute its callback with a separate tx mock
       const txMock = {
-        transaction: { create: jest.fn().mockResolvedValue({}) },
         metalAccount: {
+          findUnique: jest.fn().mockResolvedValue(account),
           update: jest.fn().mockResolvedValue({ ...account, balance: 150 }),
         },
+        transaction: { create: jest.fn().mockResolvedValue({}) },
       };
       prisma.$transaction.mockImplementation((cb: any) => cb(txMock));
 
@@ -101,22 +137,23 @@ describe("WeightsService", () => {
           }),
         }),
       );
+      // { increment } laisse Postgres calculer le nouveau solde : on ne doit
+      // plus jamais lui envoyer une valeur déjà calculée en mémoire.
       expect(txMock.metalAccount.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ balance: 150 }),
+          data: expect.objectContaining({ balance: { increment: 50 } }),
         }),
       );
     });
 
-    it("should add a DEBIT transaction and decrease balance", async () => {
+    it("should add a DEBIT transaction and decrement the balance atomically", async () => {
       const account = fakeMetalAccount({ balance: 100 });
-      prisma.metalAccount.findUnique.mockResolvedValue(account);
-
       const txMock = {
-        transaction: { create: jest.fn().mockResolvedValue({}) },
         metalAccount: {
+          findUnique: jest.fn().mockResolvedValue(account),
           update: jest.fn().mockResolvedValue({ ...account, balance: 70 }),
         },
+        transaction: { create: jest.fn().mockResolvedValue({}) },
       };
       prisma.$transaction.mockImplementation((cb: any) => cb(txMock));
 
@@ -128,13 +165,16 @@ describe("WeightsService", () => {
 
       expect(txMock.metalAccount.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ balance: 70 }),
+          data: expect.objectContaining({ balance: { increment: -30 } }),
         }),
       );
     });
 
     it("should throw NotFoundException if account not found", async () => {
-      prisma.metalAccount.findUnique.mockResolvedValue(null);
+      const txMock = {
+        metalAccount: { findUnique: jest.fn().mockResolvedValue(null) },
+      };
+      prisma.$transaction.mockImplementation((cb: any) => cb(txMock));
 
       await expect(
         service.addTransaction("nonexistent", {
@@ -143,6 +183,45 @@ describe("WeightsService", () => {
           label: "test",
         }),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe("addTransactionByUserMetal", () => {
+    it("should upsert the account atomically then add the transaction", async () => {
+      const account = fakeMetalAccount({
+        id: "account-9",
+        userId: "user-1",
+        metalType: "OR_FIN",
+      });
+      prisma.metalAccount.upsert.mockResolvedValue(account);
+
+      const txMock = {
+        metalAccount: {
+          findUnique: jest.fn().mockResolvedValue(account),
+          update: jest.fn().mockResolvedValue({ ...account, balance: 110 }),
+        },
+        transaction: { create: jest.fn().mockResolvedValue({}) },
+      };
+      prisma.$transaction.mockImplementation((cb: any) => cb(txMock));
+
+      await service.addTransactionByUserMetal("user-1", "OR_FIN" as any, {
+        type: "CREDIT" as any,
+        amount: 10,
+        label: "Dépôt",
+      });
+
+      // upsert sur la clé composite : deux dépôts concurrents pour le même
+      // client/métal ne peuvent plus créer deux comptes séparés.
+      expect(prisma.metalAccount.upsert).toHaveBeenCalledWith({
+        where: { userId_metalType: { userId: "user-1", metalType: "OR_FIN" } },
+        create: { userId: "user-1", metalType: "OR_FIN", balance: 0 },
+        update: {},
+      });
+      expect(txMock.transaction.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ accountId: "account-9" }),
+        }),
+      );
     });
   });
 });

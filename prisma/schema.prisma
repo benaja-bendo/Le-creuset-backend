@@ -111,6 +111,7 @@ model MetalAccount {
 
   @@map("metal_accounts")
   @@index([userId])
+  @@unique([userId, metalType])
 }
 
 // Transactions de poids
@@ -122,6 +123,11 @@ model Transaction {
   amount    Decimal        @db.Decimal(10, 3)
   label     String
   date      DateTime
+  // Date de saisie réelle du mouvement, distincte de `date` (fournie par
+  // l'appelant, potentiellement une correction rétroactive). Sert aussi de
+  // départage déterministe pour `orderBy: { date: 'desc' }` quand plusieurs
+  // mouvements partagent la même `date` (saisie à la journée côté front).
+  createdAt DateTime       @default(now()) @map("created_at")
 
   @@map("transactions")
   @@index([accountId])
@@ -166,7 +172,7 @@ model Order {
   stlFileUrl     String?    @map("stl_file_url")
   estimatedPrice Decimal?   @map("estimated_price") @db.Decimal(10, 2)
   notes          String?
-  materialType   String?    @map("material_type")
+  materialType   MetalType? @map("material_type")
   quantity       Int        @default(1)
   isManualOrder  Boolean    @default(false) @map("is_manual_order")
   orderNumber    String?    @unique @map("order_number")
@@ -227,21 +233,30 @@ enum BaseMetalType {
   PALLADIUM
 }
 
-// Alliages et services (pour le Devis/Commande)
+// Alliages et services (pour le Devis/Commande).
+//
+// Historiquement une deuxième nomenclature ("OR_750_JAUNE", purity-first)
+// vivait côté front (admin/Orders.tsx) sans jamais être validée : la colonne
+// Order.materialType était un String? brut. Les valeurs ci-dessous reprennent
+// cette nomenclature front (déjà celle de toutes les données réelles) plutôt
+// que l'ancienne — voir audit §2.4 — pour ne pas avoir à réécrire les données
+// existantes. LAITON et PROTOTYPE_RESINE, absents de l'ancien enum, sont ajoutés.
 enum MetalType {
-  OR_JAUNE_375
-  OR_JAUNE_750
-  OR_ROSE_375
-  OR_ROSE_750
-  OR_GRIS_375
-  OR_GRIS_750
-  OR_GRIS_750_PALLADIE_13
-  OR_ROUGE_750
+  OR_375_JAUNE
+  OR_750_JAUNE
+  OR_375_ROSE
+  OR_750_ROSE
+  OR_375_GRIS
+  OR_750_GRIS
+  OR_750_PALLADIE_13
+  OR_750_ROUGE
   PLATINE_950
   PALLADIUM
   ARGENT_925
   PROTO_VISUEL
   IMPRESSION_CIRE
+  LAITON
+  PROTOTYPE_RESINE
 }
 
 // Type de transaction

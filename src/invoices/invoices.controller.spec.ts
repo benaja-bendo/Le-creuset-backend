@@ -9,12 +9,18 @@ describe("InvoicesController", () => {
 
   beforeEach(async () => {
     invoicesService = {
-      findAll: jest.fn().mockResolvedValue([fakeInvoice()]),
+      findAll: jest
+        .fn()
+        .mockResolvedValue({ items: [fakeInvoice()], total: 1, page: 1, limit: 20 }),
+      findAllCombined: jest
+        .fn()
+        .mockResolvedValue({ items: [fakeInvoice()], total: 1, page: 1, limit: 20 }),
       findByUserId: jest.fn().mockResolvedValue([fakeInvoice()]),
       findById: jest.fn().mockResolvedValue(fakeInvoice()),
       findByOrderId: jest.fn().mockResolvedValue([fakeInvoice()]),
       create: jest.fn().mockResolvedValue(fakeInvoice()),
       delete: jest.fn().mockResolvedValue(fakeInvoice()),
+      suggestNextInvoiceNumber: jest.fn().mockResolvedValue("FAC-2026-0001"),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -30,10 +36,19 @@ describe("InvoicesController", () => {
   });
 
   describe("GET /", () => {
-    it("should return all invoices (admin)", async () => {
-      const result = await controller.findAll();
-      expect(invoicesService.findAll).toHaveBeenCalled();
-      expect(result).toHaveLength(1);
+    it("should return a paginated page of invoices (admin)", async () => {
+      const result = await controller.findAll({} as any);
+      expect(invoicesService.findAll).toHaveBeenCalledWith({});
+      expect(result.items).toHaveLength(1);
+      expect(result.total).toBe(1);
+    });
+  });
+
+  describe("GET /combined", () => {
+    it("should return the combined individual+group view (admin)", async () => {
+      const result = await controller.findAllCombined({} as any);
+      expect(invoicesService.findAllCombined).toHaveBeenCalledWith({});
+      expect(result.items).toHaveLength(1);
     });
   });
 
@@ -53,9 +68,13 @@ describe("InvoicesController", () => {
   });
 
   describe("GET /order/:orderId", () => {
-    it("should return invoices for an order", async () => {
-      await controller.findByOrder("order-1");
-      expect(invoicesService.findByOrderId).toHaveBeenCalledWith("order-1");
+    it("should forward the requesting user for the ownership check", async () => {
+      const req = mockReq();
+      await controller.findByOrder("order-1", req as any);
+      expect(invoicesService.findByOrderId).toHaveBeenCalledWith(
+        "order-1",
+        req.user,
+      );
     });
   });
 
@@ -63,6 +82,14 @@ describe("InvoicesController", () => {
     it("should return an invoice by id", async () => {
       await controller.findById("invoice-1");
       expect(invoicesService.findById).toHaveBeenCalledWith("invoice-1");
+    });
+  });
+
+  describe("GET /next-number", () => {
+    it("should return the suggested invoice number", async () => {
+      const result = await controller.getNextInvoiceNumber();
+      expect(invoicesService.suggestNextInvoiceNumber).toHaveBeenCalled();
+      expect(result).toEqual({ invoiceNumber: "FAC-2026-0001" });
     });
   });
 

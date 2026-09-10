@@ -1,4 +1,5 @@
 import { Test, TestingModule } from "@nestjs/testing";
+import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { OrdersController } from "./orders.controller";
 import { OrdersService } from "./orders.service";
 import { MailService } from "../mail/mail.service";
@@ -21,11 +22,14 @@ describe("OrdersController", () => {
   beforeEach(async () => {
     ordersService = {
       findByUser: jest.fn().mockResolvedValue([fakeOrder()]),
-      findAll: jest.fn().mockResolvedValue([fakeOrder()]),
+      findAll: jest
+        .fn()
+        .mockResolvedValue({ items: [fakeOrder()], total: 1, page: 1, limit: 20 }),
       create: jest.fn().mockResolvedValue(fakeOrder()),
       createManual: jest
         .fn()
         .mockResolvedValue(fakeOrder({ isManualOrder: true })),
+      suggestNextOrderNumber: jest.fn().mockResolvedValue("CMD-2026-0001"),
       findById: jest.fn().mockResolvedValue(fakeOrder()),
       updateStatus: jest
         .fn()
@@ -60,25 +64,64 @@ describe("OrdersController", () => {
 
   describe("GET /all", () => {
     it("should return all orders", async () => {
-      await controller.getAllOrders();
-      expect(ordersService.findAll).toHaveBeenCalled();
+      await controller.getAllOrders({} as any);
+      expect(ordersService.findAll).toHaveBeenCalledWith({});
     });
   });
 
-  describe("POST /", () => {
-    it("should create an order for the current user", async () => {
+  describe("GET /next-number", () => {
+    it("should return the suggested order number", async () => {
+      const result = await controller.getNextOrderNumber();
+      expect(ordersService.suggestNextOrderNumber).toHaveBeenCalled();
+      expect(result).toEqual({ orderNumber: "CMD-2026-0001" });
+    });
+  });
+
+  describe("GET /:id", () => {
+    it("should return the order to its own owner", async () => {
+      ordersService.findById.mockResolvedValue(fakeOrder({ userId: "user-1" }));
+      const req = mockReq(); // user-1, CLIENT
+
+      const result = await controller.getById("order-1", req);
+
+      expect(result).toEqual(fakeOrder({ userId: "user-1" }));
+    });
+
+    it("should let an admin read any order", async () => {
+      ordersService.findById.mockResolvedValue(
+        fakeOrder({ userId: "someone-else" }),
+      );
+      const req = { user: { id: "admin-1", role: "ADMIN" } };
+
+      await expect(controller.getById("order-1", req)).resolves.toEqual(
+        fakeOrder({ userId: "someone-else" }),
+      );
+    });
+
+    it("should reject a client who does not own the order", async () => {
+      ordersService.findById.mockResolvedValue(
+        fakeOrder({ userId: "someone-else" }),
+      );
+      const req = mockReq(); // user-1, CLIENT
+
+      await expect(controller.getById("order-1", req)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it("should throw NotFoundException if the order does not exist", async () => {
+      ordersService.findById.mockResolvedValue(null);
       const req = mockReq();
-      const dto = { stlFileUrl: "/file.stl", notes: "test" };
-      await controller.create(req, dto);
-      expect(ordersService.create).toHaveBeenCalledWith(
-        expect.objectContaining({ userId: "user-1" }),
+
+      await expect(controller.getById("order-1", req)).rejects.toThrow(
+        NotFoundException,
       );
     });
   });
 
   describe("POST /manual", () => {
     it("should create a manual order", async () => {
-      const dto = { userId: "user-2", materialType: "OR_JAUNE_750" };
+      const dto = { userId: "user-2", materialType: "OR_750_JAUNE" as const };
       await controller.createManual(dto);
       expect(ordersService.createManual).toHaveBeenCalledWith(dto);
     });
@@ -116,7 +159,13 @@ describe("OrdersController", () => {
         "order-1",
         expect.objectContaining({ invoiceNumber: "INV-001" }),
       );
-      expect(mailService.sendOrderCompletedEmail).toHaveBeenCalled();
+      // La reference envoyee au client doit etre son numero de commande.
+      expect(mailService.sendOrderCompletedEmail).toHaveBeenCalledWith(
+        expect.any(String),
+        "CMD-000001",
+        expect.any(String),
+        expect.anything(),
+      );
       expect(result).toEqual(expect.objectContaining({ success: true }));
     });
   });

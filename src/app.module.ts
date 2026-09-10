@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
-import { APP_PIPE } from "@nestjs/core";
+import { APP_GUARD, APP_PIPE } from "@nestjs/core";
+import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { ZodValidationPipe } from "nestjs-zod";
 
 import { PrismaModule } from "./prisma/prisma.module";
@@ -24,6 +25,11 @@ import { LibraryModule } from "./library/library.module";
       envFilePath: [".env.local", ".env"],
     }),
 
+    // Limite de débit globale (aucune avant : login/register/mot de passe
+    // oublié étaient ouverts sans plafond — audit §4.3). Plafond générique
+    // ici, resserré au cas par cas via @Throttle() sur les routes sensibles.
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
+
     // Core modules
     PrismaModule,
     StorageModule,
@@ -43,6 +49,11 @@ import { LibraryModule } from "./library/library.module";
     {
       provide: APP_PIPE,
       useClass: ZodValidationPipe,
+    },
+    // Applique le plafond de ThrottlerModule à toutes les routes
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
     },
   ],
 })

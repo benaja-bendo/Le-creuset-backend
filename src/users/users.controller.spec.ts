@@ -22,7 +22,9 @@ describe("UsersController", () => {
   beforeEach(async () => {
     usersService = {
       register: jest.fn().mockResolvedValue(fakeUser({ status: "PENDING" })),
-      findAll: jest.fn().mockResolvedValue([fakeUser()]),
+      findAll: jest
+        .fn()
+        .mockResolvedValue({ items: [fakeUser()], total: 1, page: 1, limit: 20 }),
       findPending: jest.fn().mockResolvedValue([]),
       updateStatus: jest.fn().mockResolvedValue(fakeUser({ status: "ACTIVE" })),
       findById: jest.fn().mockResolvedValue(fakeUser()),
@@ -98,10 +100,10 @@ describe("UsersController", () => {
   });
 
   describe("GET /all", () => {
-    it("should return all users (admin)", async () => {
-      const result = await controller.all();
-      expect(usersService.findAll).toHaveBeenCalled();
-      expect(result).toHaveLength(1);
+    it("should return a paginated page of users (admin)", async () => {
+      const result = await controller.all({} as any);
+      expect(usersService.findAll).toHaveBeenCalledWith({});
+      expect(result.items).toHaveLength(1);
     });
   });
 
@@ -169,6 +171,47 @@ describe("UsersController", () => {
         "target-1",
         "admin-1",
         dto,
+      );
+    });
+  });
+
+  describe("PATCH /:id/profile", () => {
+    it("should update profile and email the client with what changed", async () => {
+      usersService.getProfile.mockResolvedValue(
+        fakeUser({ name: "Ancien nom", phone: "0600000000" }),
+      );
+      const dto = { name: "Nouveau nom", phone: "0611111111" };
+
+      await controller.updateUserProfile("user-1", dto as any);
+
+      expect(usersService.updateProfile).toHaveBeenCalledWith("user-1", dto);
+      expect(mailService.sendProfileUpdatedByAdminEmail).toHaveBeenCalledWith(
+        "test@example.com",
+        expect.arrayContaining([
+          { label: "Contact principal", before: "Ancien nom", after: "Nouveau nom" },
+          { label: "Téléphone", before: "0600000000", after: "0611111111" },
+        ]),
+      );
+    });
+
+    it("should not send an email when nothing actually changed", async () => {
+      usersService.getProfile.mockResolvedValue(fakeUser({ name: "Même nom" }));
+
+      await controller.updateUserProfile("user-1", { name: "Même nom" } as any);
+
+      expect(mailService.sendProfileUpdatedByAdminEmail).not.toHaveBeenCalled();
+    });
+
+    it("should only report the fields actually sent, not the whole profile", async () => {
+      usersService.getProfile.mockResolvedValue(
+        fakeUser({ name: "X", companyName: "Y", phone: "Z", address: "W" }),
+      );
+
+      await controller.updateUserProfile("user-1", { name: "X2" } as any);
+
+      expect(mailService.sendProfileUpdatedByAdminEmail).toHaveBeenCalledWith(
+        "test@example.com",
+        [{ label: "Contact principal", before: "X", after: "X2" }],
       );
     });
   });

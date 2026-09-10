@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
-import { BaseMetalType, TransactionType } from "@prisma/client";
+import { BaseMetalType, Prisma, TransactionType } from "@prisma/client";
 
 // Métaux purs gérés sur les comptes poids.
 // Le Palladium a été retiré de la liste à la demande du client : on n'initialise
@@ -24,18 +24,65 @@ export class WeightsService {
       include: {
         transactions: {
           take: 10,
-          orderBy: { date: "desc" },
+          // `date` seule ne suffit pas : saisie à la journée côté front
+          // (YYYY-MM-DD), deux mouvements du même jour n'ont pas d'ordre
+          // déterministe entre eux sans départage. `createdAt` (date de
+          // saisie réelle) sert de tiebreaker.
+          orderBy: [{ date: "desc" }, { createdAt: "desc" }],
         },
       },
     });
   }
 
   /**
-   * Get all accounts for admin view, typically sorted by debt
+   * Get all accounts for admin view, paginée par CLIENT (pas par ligne de
+   * compte) : un client a jusqu'à 3 comptes (un par métal actif), et couper
+   * une page au milieu d'un client casserait l'affichage groupé du front.
+   * On paginate donc sur les utilisateurs ayant au moins un compte actif,
+   * puis on récupère leurs comptes.
+   *
+   * Compromis assumé : le tri "dettes d'abord" du front (comptes à solde
+   * négatif remontés en tête) se faisait sur la liste complète ; il ne
+   * s'applique plus qu'à l'intérieur de chaque page, pas globalement sur
+   * tout le client. Reproduire un tri global par dette en SQL demanderait un
+   * agrégat sur la relation (raw SQL) pour un gain marginal — cette
+   * business a un nombre de clients borné, pas un flux de transactions.
    */
-  async getAllAccounts() {
-    return this.prisma.metalAccount.findMany({
-      where: { metalType: { in: ACTIVE_BASE_METALS } },
+  async getAllAccounts(
+    query: { page?: number; limit?: number; search?: string } = {},
+  ) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const term = query.search?.trim();
+
+    const userWhere: Prisma.UserWhereInput = {
+      metalAccounts: { some: { metalType: { in: ACTIVE_BASE_METALS } } },
+      ...(term
+        ? {
+            OR: [
+              { companyName: { contains: term, mode: "insensitive" } },
+              { email: { contains: term, mode: "insensitive" } },
+            ],
+          }
+        : {}),
+    };
+
+    const [userIds, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where: userWhere,
+        select: { id: true },
+        orderBy: [{ companyName: "asc" }, { email: "asc" }],
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.user.count({ where: userWhere }),
+    ]);
+
+    const items = await this.prisma.metalAccount.findMany({
+      where: {
+        userId: { in: userIds.map((u) => u.id) },
+        metalType: { in: ACTIVE_BASE_METALS },
+      },
       include: {
         user: {
           select: {
@@ -45,8 +92,10 @@ export class WeightsService {
           },
         },
       },
-      orderBy: { balance: "asc" }, // Shows negative balances first (clients who owe metal)
+      orderBy: { balance: "asc" },
     });
+
+    return { items, total, page, limit };
   }
 
   /**
@@ -69,6 +118,13 @@ export class WeightsService {
    * Ajoute un mouvement sur le compte (userId + métal de base), en créant le
    * compte si nécessaire. Utilisé notamment lors du dépôt d'une facture / dépôt métal.
    */
+  /**
+   * `tx` optionnel : quand un appelant (ex. InvoicesService.create) est déjà
+   * dans son propre `$transaction`, on réutilise ce même client plutôt que
+   * d'en ouvrir un second — sinon la facture pouvait être créée alors que le
+   * dépôt métal qui l'accompagne échouait juste après, sans aucune trace de
+   * l'échec côté facture.
+   */
   async addTransactionByUserMetal(
     userId: string,
     metalType: BaseMetalType,
@@ -78,22 +134,25 @@ export class WeightsService {
       label: string;
       date?: Date;
     },
+    tx?: Prisma.TransactionClient,
   ) {
-    let account = await this.prisma.metalAccount.findFirst({
-      where: { userId, metalType },
+    const client = tx ?? this.prisma;
+    // upsert atomique : le findFirst+create précédent laissait une fenêtre où
+    // deux appels concurrents (ex. deux dépôts de facture au même moment)
+    // pouvaient chacun ne rien trouver et créer deux comptes pour le même
+    // métal. La contrainte @@unique([userId, metalType]) rend ça impossible.
+    const account = await client.metalAccount.upsert({
+      where: { userId_metalType: { userId, metalType } },
+      create: { userId, metalType, balance: 0 },
+      update: {},
     });
 
-    if (!account) {
-      account = await this.prisma.metalAccount.create({
-        data: { userId, metalType, balance: 0 },
-      });
-    }
-
-    return this.addTransaction(account.id, data);
+    return this.addTransaction(account.id, data, tx);
   }
 
   /**
-   * Add a transaction to a metal account and update its balance
+   * Add a transaction to a metal account and update its balance. Voir la
+   * note sur `tx` ci-dessus.
    */
   async addTransaction(
     accountId: string,
@@ -103,40 +162,46 @@ export class WeightsService {
       label: string;
       date?: Date;
     },
+    existingTx?: Prisma.TransactionClient,
   ) {
-    const account = await this.prisma.metalAccount.findUnique({
-      where: { id: accountId },
-    });
-
-    if (!account) throw new NotFoundException("Compte métal non trouvé");
-
     const amount = Number(data.amount);
-    const newBalance =
-      data.type === TransactionType.CREDIT
-        ? Number(account.balance) + amount
-        : Number(account.balance) - amount;
+    // { increment/decrement } se traduit par un UPDATE ... SET balance =
+    // balance ± x côté Postgres : deux mouvements concurrents sur le même
+    // compte s'additionnent correctement. Lire le solde puis réécrire une
+    // valeur calculée en mémoire (comme avant) perd l'un des deux si les
+    // écritures se chevauchent.
+    const delta = data.type === TransactionType.CREDIT ? amount : -amount;
 
-    return this.prisma.$transaction(async (tx) => {
-      // Create transaction record
+    const run = async (tx: Prisma.TransactionClient) => {
+      const account = await tx.metalAccount.findUnique({
+        where: { id: accountId },
+      });
+      if (!account) throw new NotFoundException("Compte métal non trouvé");
+
       await tx.transaction.create({
         data: {
           accountId,
           type: data.type,
-          amount: amount,
+          amount,
           label: data.label,
           date: data.date || new Date(),
         },
       });
 
-      // Update account balance
       return tx.metalAccount.update({
         where: { id: accountId },
         data: {
-          balance: newBalance,
+          balance: { increment: delta },
           lastUpdate: new Date(),
         },
       });
-    });
+    };
+
+    // Prisma ne supporte pas les transactions imbriquées : si l'appelant en a
+    // déjà une en cours, on l'utilise directement plutôt que d'en ouvrir une
+    // nouvelle.
+    if (existingTx) return run(existingTx);
+    return this.prisma.$transaction(run);
   }
 
   /**

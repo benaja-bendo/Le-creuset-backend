@@ -2,10 +2,13 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
+  NotFoundException,
   Param,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from "@nestjs/common";
@@ -15,7 +18,11 @@ import { RolesGuard } from "../auth/roles.guard";
 import { Roles } from "../auth/roles.decorator";
 import { OrderStatus } from "@prisma/client";
 import { CloseOrderDto } from "./dto/close-order.dto";
+import { CreateManualOrderDto } from "./dto/create-order.dto";
+import { UpdateOrderDto } from "./dto/update-order.dto";
 import { MailService } from "../mail/mail.service";
+import { orderReference } from "../common/order-ref";
+import { PaginationQueryDto } from "../common/pagination.dto";
 
 @Controller("orders")
 @UseGuards(JwtAuthGuard)
@@ -33,54 +40,47 @@ export class OrdersController {
   @Get("all")
   @UseGuards(RolesGuard)
   @Roles("ADMIN")
-  async getAllOrders() {
-    return this.ordersService.findAll();
+  async getAllOrders(@Query() query: PaginationQueryDto) {
+    return this.ordersService.findAll(query);
   }
 
-  @Post()
-  async create(
-    @Req() req: any,
-    @Body()
-    dto: {
-      stlFileUrl?: string;
-      estimatedPrice?: number;
-      materialType?: string;
-      notes?: string;
-    },
-  ) {
-    return this.ordersService.create({
-      userId: req.user.id,
-      ...dto,
-      materialType: dto.materialType as any,
-    });
-  }
-
+  // Il existait un POST / (self-service, sans @Roles) permettant à n'importe
+  // quel client connecté de créer une commande en fixant son propre prix —
+  // contraire à la règle métier (les commandes arrivent par email, pas de
+  // parcours self-service) et sans consommateur front. Retiré plutôt que
+  // gardé "juste au cas où" : ne pas le réintroduire sans validation client.
   @Post("manual")
   @UseGuards(RolesGuard)
   @Roles("ADMIN")
-  async createManual(
-    @Body()
-    dto: {
-      userId: string;
-      estimatedPrice?: number;
-      materialType?: string;
-      notes?: string;
-      orderNumber?: string;
-    },
-  ) {
+  async createManual(@Body() dto: CreateManualOrderDto) {
     return this.ordersService.createManual(dto);
   }
 
-  @Get()
+  /**
+   * Suggestion de numéro pour pré-remplir le formulaire de saisie manuelle.
+   * Doit être déclarée avant `:id` pour ne pas être interprétée comme un id.
+   */
+  @Get("next-number")
   @UseGuards(RolesGuard)
   @Roles("ADMIN")
-  async getAll() {
-    return this.ordersService.findAll();
+  async getNextOrderNumber() {
+    return { orderNumber: await this.ordersService.suggestNextOrderNumber() };
   }
 
+  /**
+   * Cette route n'a que JwtAuthGuard : n'importe quel client connecté
+   * disposant d'un id de commande pouvait lire la fiche complète d'un autre
+   * client. Le contrôle de propriété doit donc vivre ici, pas dans un
+   * @Roles — un client légitime doit garder accès à SA commande.
+   */
   @Get(":id")
-  async getById(@Param("id") id: string) {
-    return this.ordersService.findById(id);
+  async getById(@Param("id") id: string, @Req() req: any) {
+    const order = await this.ordersService.findById(id);
+    if (!order) throw new NotFoundException("Commande non trouvée");
+    if (order.userId !== req.user.id && req.user.role !== "ADMIN") {
+      throw new ForbiddenException("Vous n'avez pas accès à cette commande");
+    }
+    return order;
   }
 
   @Patch(":id/status")
@@ -96,11 +96,8 @@ export class OrdersController {
   @Patch(":id")
   @UseGuards(RolesGuard)
   @Roles("ADMIN")
-  async update(
-    @Param("id") id: string,
-    @Body() dto: { materialType?: string; notes?: string; stlFileUrl?: string },
-  ) {
-    return this.ordersService.update(id, dto as any);
+  async update(@Param("id") id: string, @Body() dto: UpdateOrderDto) {
+    return this.ordersService.update(id, dto);
   }
 
   @Delete(":id")
@@ -131,7 +128,8 @@ export class OrdersController {
     if (result.order.user?.email) {
       await this.mailService.sendOrderCompletedEmail(
         result.order.user.email,
-        id.slice(-6),
+        // Référence lisible par le client : son numéro de commande, pas l'id technique.
+        orderReference(result.order),
         result.invoice.invoiceNumber,
         dto.finalAmount,
       );

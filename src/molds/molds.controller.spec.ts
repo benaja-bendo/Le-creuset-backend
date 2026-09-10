@@ -10,7 +10,9 @@ describe("MoldsController", () => {
   beforeEach(async () => {
     moldsService = {
       findByUser: jest.fn().mockResolvedValue([fakeMold()]),
-      findAll: jest.fn().mockResolvedValue([fakeMold()]),
+      findAll: jest
+        .fn()
+        .mockResolvedValue({ items: [fakeMold()], total: 1, page: 1, limit: 20 }),
       create: jest.fn().mockResolvedValue(fakeMold()),
       delete: jest.fn().mockResolvedValue(fakeMold()),
     };
@@ -32,9 +34,9 @@ describe("MoldsController", () => {
   });
 
   describe("GET /all", () => {
-    it("should return all molds (admin)", async () => {
-      await controller.getAllMolds();
-      expect(moldsService.findAll).toHaveBeenCalled();
+    it("should return a paginated page of molds (admin)", async () => {
+      await controller.getAllMolds({} as any);
+      expect(moldsService.findAll).toHaveBeenCalledWith({});
     });
   });
 

@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
   UseGuards,
 } from "@nestjs/common";
 import { InvoiceGroupsService } from "./invoice-groups.service";
@@ -14,6 +15,7 @@ import { UpdateInvoiceGroupDto } from "./dto/update-invoice-group.dto";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
 import { Roles } from "../auth/roles.decorator";
+import { PaginationQueryDto } from "../common/pagination.dto";
 
 @Controller("invoice-groups")
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -28,8 +30,21 @@ export class InvoiceGroupsController {
 
   @Get()
   @Roles("ADMIN")
-  findAll() {
-    return this.invoiceGroupsService.findAll();
+  findAll(@Query() query: PaginationQueryDto) {
+    return this.invoiceGroupsService.findAll(query);
+  }
+
+  /**
+   * Suggestion de numéro pour pré-remplir le formulaire de facture groupée.
+   * Doit être déclarée avant `:id` pour ne pas être interprétée comme un id.
+   */
+  @Get("next-number")
+  @Roles("ADMIN")
+  async getNextInvoiceNumber() {
+    return {
+      invoiceNumber:
+        await this.invoiceGroupsService.suggestNextInvoiceGroupNumber(),
+    };
   }
 
   @Get(":id")

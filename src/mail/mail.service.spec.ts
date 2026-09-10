@@ -193,5 +193,23 @@ describe("MailService", () => {
         }),
       );
     });
+
+    it("sendProfileUpdatedByAdminEmail should list each changed field", async () => {
+      await service.sendProfileUpdatedByAdminEmail("client@test.com", [
+        { label: "Téléphone", before: "0600000000", after: "0611111111" },
+      ]);
+
+      expect(service.sendEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: "client@test.com",
+          html: expect.stringContaining("Téléphone"),
+        }),
+      );
+      expect(service.sendEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          html: expect.stringContaining("0611111111"),
+        }),
+      );
+    });
   });
 });

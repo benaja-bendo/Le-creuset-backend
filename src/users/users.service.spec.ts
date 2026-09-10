@@ -76,9 +76,10 @@ describe("UsersService", () => {
   /* ================================================================ */
 
   describe("findAll", () => {
-    it("should return all users ordered by createdAt desc", async () => {
+    it("should return a paginated page of users ordered by createdAt desc", async () => {
       const users = [fakeUser(), fakeUser({ id: "user-2" })];
       prisma.user.findMany.mockResolvedValue(users);
+      prisma.user.count.mockResolvedValue(2);
 
       const result = await service.findAll();
 
@@ -87,7 +88,42 @@ describe("UsersService", () => {
           orderBy: { createdAt: "desc" },
         }),
       );
-      expect(result).toEqual(users);
+      expect(result).toEqual({ items: users, total: 2, page: 1, limit: 20 });
+    });
+
+    it("should search by company name, email, or contact name", async () => {
+      prisma.user.findMany.mockResolvedValue([]);
+      prisma.user.count.mockResolvedValue(0);
+
+      await service.findAll({ search: "bella" });
+
+      expect(prisma.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            OR: [
+              { companyName: { contains: "bella", mode: "insensitive" } },
+              { email: { contains: "bella", mode: "insensitive" } },
+              { name: { contains: "bella", mode: "insensitive" } },
+            ],
+          },
+        }),
+      );
+    });
+
+    it("should filter by a comma-separated status list", async () => {
+      prisma.user.findMany.mockResolvedValue([]);
+      prisma.user.count.mockResolvedValue(0);
+
+      await service.findAll({ status: "ACTIVE,SUSPENDED" });
+
+      expect(prisma.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { status: { in: ["ACTIVE", "SUSPENDED"] } },
+        }),
+      );
+      expect(prisma.user.count).toHaveBeenCalledWith({
+        where: { status: { in: ["ACTIVE", "SUSPENDED"] } },
+      });
     });
   });
 

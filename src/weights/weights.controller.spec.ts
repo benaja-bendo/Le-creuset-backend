@@ -32,9 +32,9 @@ describe("WeightsController", () => {
   });
 
   describe("GET /all", () => {
-    it("should return all accounts for admin", async () => {
-      await controller.getAllWeights();
-      expect(weightsService.getAllAccounts).toHaveBeenCalled();
+    it("should return a paginated page of accounts for admin", async () => {
+      await controller.getAllWeights({} as any);
+      expect(weightsService.getAllAccounts).toHaveBeenCalledWith({});
     });
   });
 

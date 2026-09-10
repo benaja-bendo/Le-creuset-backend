@@ -92,6 +92,9 @@ export function createMockMailService() {
     sendOrderCompletedEmail: jest
       .fn()
       .mockResolvedValue({ id: "mail-5", success: true }),
+    sendProfileUpdatedByAdminEmail: jest
+      .fn()
+      .mockResolvedValue({ id: "mail-6", success: true }),
   };
 }
 
@@ -133,7 +136,9 @@ export function createMockConfigService(
 export function createMockWeightsService() {
   return {
     getUserAccounts: jest.fn().mockResolvedValue([]),
-    getAllAccounts: jest.fn().mockResolvedValue([]),
+    getAllAccounts: jest
+      .fn()
+      .mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 }),
     initializeUserAccounts: jest.fn().mockResolvedValue({ count: 4 }),
     addTransaction: jest.fn().mockResolvedValue({}),
     addTransactionByUserMetal: jest.fn().mockResolvedValue({}),
@@ -188,6 +193,7 @@ export function fakeUser(overrides: Record<string, any> = {}) {
 export function fakeOrder(overrides: Record<string, any> = {}) {
   return {
     id: "order-1",
+    orderNumber: "CMD-000001",
     userId: "user-1",
     status: "EN_ATTENTE",
     stlFileUrl: null,

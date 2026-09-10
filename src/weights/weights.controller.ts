@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   Post,
+  Query,
   Req,
   UseGuards,
 } from "@nestjs/common";
@@ -11,7 +12,8 @@ import { WeightsService } from "./weights.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
 import { Roles } from "../auth/roles.decorator";
-import { TransactionType } from "@prisma/client";
+import { AddTransactionDto } from "./dto/add-transaction.dto";
+import { PaginationQueryDto } from "../common/pagination.dto";
 
 @Controller("weights")
 @UseGuards(JwtAuthGuard)
@@ -32,8 +34,8 @@ export class WeightsController {
   @Get("all")
   @UseGuards(RolesGuard)
   @Roles("ADMIN")
-  async getAllWeights() {
-    return this.weightsService.getAllAccounts();
+  async getAllWeights(@Query() query: PaginationQueryDto) {
+    return this.weightsService.getAllAccounts(query);
   }
 
   /**
@@ -54,13 +56,7 @@ export class WeightsController {
   @Roles("ADMIN")
   async addTransaction(
     @Param("id") id: string,
-    @Body()
-    dto: {
-      type: TransactionType;
-      amount: number;
-      label: string;
-      date?: string;
-    },
+    @Body() dto: AddTransactionDto,
   ) {
     return this.weightsService.addTransaction(id, {
       ...dto,

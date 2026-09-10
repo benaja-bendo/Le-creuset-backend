@@ -11,7 +11,7 @@ import { UpdateDocumentsDto } from "./dto/update-documents.dto";
 import { UpdateRoleDto } from "./dto/update-role.dto";
 import { randomBytes, scryptSync, timingSafeEqual } from "crypto";
 import { WeightsService } from "../weights/weights.service";
-import { UserStatus } from "@prisma/client";
+import { Prisma, UserStatus } from "@prisma/client";
 
 function hashPassword(password: string, salt: string): string {
   const derived = scryptSync(password, salt, 32);
@@ -56,20 +56,63 @@ export class UsersService {
     });
   }
 
-  async findAll() {
-    return this.prisma.user.findMany({
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        status: true,
-        companyName: true,
-        phone: true,
-        createdAt: true,
-      },
-    });
+  /**
+   * Double usage à préserver : le tableau admin (Utilisateurs) veut une vraie
+   * page, mais plusieurs sélecteurs de client (création de commande, dépôt
+   * bibliothèque) veulent TOUS les clients pour peupler un menu déroulant —
+   * ceux-là passent explicitement une limite haute plutôt que de subir le
+   * défaut de 20.
+   *
+   * `status` accepte une liste séparée par des virgules (ex. "ACTIVE,SUSPENDED")
+   * — l'onglet "Utilisateurs actifs" d'UsersPending.tsx filtrait ces deux
+   * statuts en mémoire après avoir chargé tout le monde ; sans ce filtre côté
+   * serveur, paginer aurait rendu ce filtre incohérent avec le total affiché.
+   */
+  async findAll(
+    query: { page?: number; limit?: number; search?: string; status?: string } = {},
+  ) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const term = query.search?.trim();
+    const statuses = query.status
+      ?.split(",")
+      .map((s) => s.trim())
+      .filter(Boolean) as UserStatus[] | undefined;
+
+    const where: Prisma.UserWhereInput = {
+      ...(statuses?.length ? { status: { in: statuses } } : {}),
+      ...(term
+        ? {
+            OR: [
+              { companyName: { contains: term, mode: "insensitive" } },
+              { email: { contains: term, mode: "insensitive" } },
+              { name: { contains: term, mode: "insensitive" } },
+            ],
+          }
+        : {}),
+    };
+
+    const [items, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          status: true,
+          companyName: true,
+          phone: true,
+          createdAt: true,
+        },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.user.count({ where }),
+    ]);
+
+    return { items, total, page, limit };
   }
 
   async updateStatus(id: string, status: UserStatus) {
