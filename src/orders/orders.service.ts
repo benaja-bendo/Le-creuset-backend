@@ -5,7 +5,7 @@ import {
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { orderReference } from "../common/order-ref";
-import { OrderStatus, TransactionType, MetalType } from "@prisma/client";
+import { OrderStatus, TransactionType, MetalType, Prisma } from "@prisma/client";
 
 @Injectable()
 export class OrdersService {
@@ -23,22 +23,40 @@ export class OrdersService {
     });
   }
 
-  async findAll() {
-    return this.prisma.order.findMany({
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            companyName: true,
+  async findAll(query: { page?: number; limit?: number; status?: string } = {}) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    // Le filtre de statut vivait côté front (sur les seules commandes déjà
+    // chargées) : une fois la liste paginée, filtrer après coup ne verrait
+    // que la page courante et cacherait des résultats bien réels d'autres
+    // pages. Il doit passer côté serveur en même temps que la pagination.
+    const where: Prisma.OrderWhereInput = query.status
+      ? { status: query.status as OrderStatus }
+      : {};
+
+    const [items, total] = await Promise.all([
+      this.prisma.order.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              companyName: true,
+            },
+          },
+          invoices: {
+            select: { id: true, invoiceNumber: true },
           },
         },
-        invoices: {
-          select: { id: true, invoiceNumber: true },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.order.count({ where }),
+    ]);
+
+    return { items, total, page, limit };
   }
 
   async create(data: {

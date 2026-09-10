@@ -32,8 +32,9 @@ describe("InvoicesService", () => {
   });
 
   describe("findAll", () => {
-    it("should return all invoices with order and user", async () => {
+    it("should return a paginated page of invoices with order and user", async () => {
       prisma.invoice.findMany.mockResolvedValue([fakeInvoice()]);
+      prisma.invoice.count.mockResolvedValue(1);
 
       const result = await service.findAll();
 
@@ -52,9 +53,56 @@ describe("InvoicesService", () => {
             },
             user: expect.any(Object),
           }),
+          skip: 0,
+          take: 20,
         }),
       );
-      expect(result).toHaveLength(1);
+      expect(result).toEqual({ items: [fakeInvoice()], total: 1, page: 1, limit: 20 });
+    });
+
+    it("should search by invoice number, client, or linked order number", async () => {
+      prisma.invoice.findMany.mockResolvedValue([]);
+      prisma.invoice.count.mockResolvedValue(0);
+
+      await service.findAll({ search: "CMD-123456" });
+
+      expect(prisma.invoice.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            OR: expect.arrayContaining([
+              { order: { orderNumber: { contains: "CMD-123456", mode: "insensitive" } } },
+            ]),
+          },
+        }),
+      );
+    });
+  });
+
+  describe("findAllCombined", () => {
+    it("should merge individual and group invoices sorted by date", async () => {
+      const oldInvoice = fakeInvoice({
+        id: "inv-old",
+        createdAt: new Date("2026-01-01"),
+      });
+      const newGroup = {
+        id: "grp-new",
+        invoiceNumber: "FAC-GRP-1",
+        createdAt: new Date("2026-02-01"),
+        orders: [],
+        user: { id: "user-1", email: "test@example.com", companyName: "Co" },
+      };
+      prisma.invoice.findMany.mockResolvedValue([oldInvoice]);
+      prisma.invoiceGroup.findMany.mockResolvedValue([newGroup]);
+      prisma.invoice.count.mockResolvedValue(1);
+      prisma.invoiceGroup.count.mockResolvedValue(1);
+
+      const result = await service.findAllCombined({ page: 1, limit: 20 });
+
+      expect(result.total).toBe(2);
+      expect(result.items).toEqual([
+        expect.objectContaining({ id: "grp-new", type: "group" }),
+        expect.objectContaining({ id: "inv-old", type: "individual" }),
+      ]);
     });
   });
 

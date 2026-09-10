@@ -41,16 +41,39 @@ describe("WeightsService", () => {
   });
 
   describe("getAllAccounts", () => {
-    it("should return all accounts sorted by balance asc", async () => {
-      prisma.metalAccount.findMany.mockResolvedValue([]);
+    it("should paginate by client, then return that page's accounts sorted by balance asc", async () => {
+      prisma.user.findMany.mockResolvedValue([{ id: "user-1" }, { id: "user-2" }]);
+      prisma.user.count.mockResolvedValue(2);
+      prisma.metalAccount.findMany.mockResolvedValue([fakeMetalAccount()]);
 
-      await service.getAllAccounts();
+      const result = await service.getAllAccounts();
 
+      // La pagination porte sur les CLIENTS (jusqu'à 3 comptes chacun) pour ne
+      // jamais couper un client au milieu d'une page — pas sur les lignes de
+      // compte brutes.
+      expect(prisma.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            metalAccounts: { some: { metalType: { in: expect.any(Array) } } },
+          }),
+          skip: 0,
+          take: 20,
+        }),
+      );
       expect(prisma.metalAccount.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
+          where: expect.objectContaining({
+            userId: { in: ["user-1", "user-2"] },
+          }),
           orderBy: { balance: "asc" },
         }),
       );
+      expect(result).toEqual({
+        items: [fakeMetalAccount()],
+        total: 2,
+        page: 1,
+        limit: 20,
+      });
     });
   });
 

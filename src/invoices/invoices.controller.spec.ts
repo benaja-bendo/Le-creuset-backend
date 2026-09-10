@@ -9,7 +9,12 @@ describe("InvoicesController", () => {
 
   beforeEach(async () => {
     invoicesService = {
-      findAll: jest.fn().mockResolvedValue([fakeInvoice()]),
+      findAll: jest
+        .fn()
+        .mockResolvedValue({ items: [fakeInvoice()], total: 1, page: 1, limit: 20 }),
+      findAllCombined: jest
+        .fn()
+        .mockResolvedValue({ items: [fakeInvoice()], total: 1, page: 1, limit: 20 }),
       findByUserId: jest.fn().mockResolvedValue([fakeInvoice()]),
       findById: jest.fn().mockResolvedValue(fakeInvoice()),
       findByOrderId: jest.fn().mockResolvedValue([fakeInvoice()]),
@@ -30,10 +35,19 @@ describe("InvoicesController", () => {
   });
 
   describe("GET /", () => {
-    it("should return all invoices (admin)", async () => {
-      const result = await controller.findAll();
-      expect(invoicesService.findAll).toHaveBeenCalled();
-      expect(result).toHaveLength(1);
+    it("should return a paginated page of invoices (admin)", async () => {
+      const result = await controller.findAll({} as any);
+      expect(invoicesService.findAll).toHaveBeenCalledWith({});
+      expect(result.items).toHaveLength(1);
+      expect(result.total).toBe(1);
+    });
+  });
+
+  describe("GET /combined", () => {
+    it("should return the combined individual+group view (admin)", async () => {
+      const result = await controller.findAllCombined({} as any);
+      expect(invoicesService.findAllCombined).toHaveBeenCalledWith({});
+      expect(result.items).toHaveLength(1);
     });
   });
 

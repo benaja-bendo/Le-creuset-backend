@@ -6,7 +6,7 @@ import {
 import { CreateInvoiceGroupDto } from "./dto/create-invoice-group.dto";
 import { UpdateInvoiceGroupDto } from "./dto/update-invoice-group.dto";
 import { PrismaService } from "../prisma/prisma.service";
-import { OrderStatus } from "@prisma/client";
+import { OrderStatus, Prisma } from "@prisma/client";
 
 @Injectable()
 export class InvoiceGroupsService {
@@ -74,14 +74,40 @@ export class InvoiceGroupsService {
     });
   }
 
-  findAll() {
-    return this.prisma.invoiceGroup.findMany({
-      include: {
-        user: { select: { companyName: true, email: true } },
-        orders: true,
-      },
-      orderBy: { createdAt: "desc" },
-    });
+  async findAll(query: { page?: number; limit?: number; search?: string } = {}) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const term = query.search?.trim();
+    const where: Prisma.InvoiceGroupWhereInput = term
+      ? {
+          OR: [
+            { invoiceNumber: { contains: term, mode: "insensitive" } },
+            { user: { companyName: { contains: term, mode: "insensitive" } } },
+            { user: { email: { contains: term, mode: "insensitive" } } },
+            {
+              orders: {
+                some: { orderNumber: { contains: term, mode: "insensitive" } },
+              },
+            },
+          ],
+        }
+      : {};
+
+    const [items, total] = await Promise.all([
+      this.prisma.invoiceGroup.findMany({
+        where,
+        include: {
+          user: { select: { companyName: true, email: true } },
+          orders: true,
+        },
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.invoiceGroup.count({ where }),
+    ]);
+
+    return { items, total, page, limit };
   }
 
   async findOne(id: string) {

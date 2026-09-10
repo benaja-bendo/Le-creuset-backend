@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from "@nestjs/common";
@@ -13,6 +14,7 @@ import { MoldsService } from "./molds.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
 import { Roles } from "../auth/roles.decorator";
+import { PaginationQueryDto } from "../common/pagination.dto";
 
 @Controller("molds")
 @UseGuards(JwtAuthGuard)
@@ -27,8 +29,8 @@ export class MoldsController {
   @Get("all")
   @UseGuards(RolesGuard)
   @Roles("ADMIN")
-  async getAllMolds() {
-    return this.moldsService.findAll();
+  async getAllMolds(@Query() query: PaginationQueryDto) {
+    return this.moldsService.findAll(query);
   }
 
   @Post()

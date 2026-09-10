@@ -45,17 +45,38 @@ describe("OrdersService", () => {
   });
 
   describe("findAll", () => {
-    it("should return all orders with user and invoices", async () => {
+    it("should return a paginated page of orders with user and invoices", async () => {
       prisma.order.findMany.mockResolvedValue([fakeOrder()]);
+      prisma.order.count.mockResolvedValue(1);
 
       const result = await service.findAll();
 
       expect(prisma.order.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           include: expect.objectContaining({ user: expect.any(Object) }),
+          skip: 0,
+          take: 20,
         }),
       );
-      expect(result).toHaveLength(1);
+      expect(result).toEqual({ items: [fakeOrder()], total: 1, page: 1, limit: 20 });
+    });
+
+    it("should filter by status and page when provided", async () => {
+      prisma.order.findMany.mockResolvedValue([]);
+      prisma.order.count.mockResolvedValue(0);
+
+      await service.findAll({ page: 2, limit: 10, status: "FONDU" as any });
+
+      expect(prisma.order.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { status: "FONDU" },
+          skip: 10,
+          take: 10,
+        }),
+      );
+      expect(prisma.order.count).toHaveBeenCalledWith({
+        where: { status: "FONDU" },
+      });
     });
   });
 

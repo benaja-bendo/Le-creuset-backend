@@ -22,7 +22,9 @@ describe("UsersController", () => {
   beforeEach(async () => {
     usersService = {
       register: jest.fn().mockResolvedValue(fakeUser({ status: "PENDING" })),
-      findAll: jest.fn().mockResolvedValue([fakeUser()]),
+      findAll: jest
+        .fn()
+        .mockResolvedValue({ items: [fakeUser()], total: 1, page: 1, limit: 20 }),
       findPending: jest.fn().mockResolvedValue([]),
       updateStatus: jest.fn().mockResolvedValue(fakeUser({ status: "ACTIVE" })),
       findById: jest.fn().mockResolvedValue(fakeUser()),
@@ -98,10 +100,10 @@ describe("UsersController", () => {
   });
 
   describe("GET /all", () => {
-    it("should return all users (admin)", async () => {
-      const result = await controller.all();
-      expect(usersService.findAll).toHaveBeenCalled();
-      expect(result).toHaveLength(1);
+    it("should return a paginated page of users (admin)", async () => {
+      const result = await controller.all({} as any);
+      expect(usersService.findAll).toHaveBeenCalledWith({});
+      expect(result.items).toHaveLength(1);
     });
   });
 

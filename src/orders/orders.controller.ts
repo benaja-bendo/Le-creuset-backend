@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from "@nestjs/common";
@@ -19,6 +20,7 @@ import { OrderStatus } from "@prisma/client";
 import { CloseOrderDto } from "./dto/close-order.dto";
 import { MailService } from "../mail/mail.service";
 import { orderReference } from "../common/order-ref";
+import { PaginationQueryDto } from "../common/pagination.dto";
 
 @Controller("orders")
 @UseGuards(JwtAuthGuard)
@@ -36,8 +38,8 @@ export class OrdersController {
   @Get("all")
   @UseGuards(RolesGuard)
   @Roles("ADMIN")
-  async getAllOrders() {
-    return this.ordersService.findAll();
+  async getAllOrders(@Query() query: PaginationQueryDto) {
+    return this.ordersService.findAll(query);
   }
 
   @Post()
@@ -77,8 +79,8 @@ export class OrdersController {
   @Get()
   @UseGuards(RolesGuard)
   @Roles("ADMIN")
-  async getAll() {
-    return this.ordersService.findAll();
+  async getAll(@Query() query: PaginationQueryDto) {
+    return this.ordersService.findAll(query);
   }
 
   /**

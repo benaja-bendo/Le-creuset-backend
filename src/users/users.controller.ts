@@ -6,6 +6,7 @@ import {
   Patch,
   Post,
   Delete,
+  Query,
   UseGuards,
   Req,
 } from "@nestjs/common";
@@ -21,6 +22,7 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
 import { Roles } from "../auth/roles.decorator";
 import { Request } from "express";
+import { PaginationQueryDto } from "../common/pagination.dto";
 
 interface JwtPayload {
   id: string;
@@ -111,8 +113,8 @@ export class UsersController {
   @Get("all")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("ADMIN")
-  async all() {
-    return this.usersService.findAll();
+  async all(@Query() query: PaginationQueryDto) {
+    return this.usersService.findAll(query);
   }
 
   @Get("pending")

@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   Post,
+  Query,
   Req,
   UseGuards,
 } from "@nestjs/common";
@@ -14,6 +15,7 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
 import { Roles } from "../auth/roles.decorator";
 import { Request } from "express";
+import { PaginationQueryDto } from "../common/pagination.dto";
 
 interface AuthRequest extends Request {
   user: {
@@ -29,13 +31,25 @@ export class InvoicesController {
   constructor(private readonly invoicesService: InvoicesService) {}
 
   /**
-   * Get all invoices (admin only)
+   * Get all invoices (admin only), paginée
    */
   @Get()
   @UseGuards(RolesGuard)
   @Roles("ADMIN")
-  async findAll() {
-    return this.invoicesService.findAll();
+  async findAll(@Query() query: PaginationQueryDto) {
+    return this.invoicesService.findAll(query);
+  }
+
+  /**
+   * Vue combinée factures individuelles + groupées, paginée — consommée par
+   * admin/Invoices.tsx, qui affiche les deux dans un seul tableau trié.
+   * Doit être déclarée avant `:id` pour ne pas être interprétée comme un id.
+   */
+  @Get("combined")
+  @UseGuards(RolesGuard)
+  @Roles("ADMIN")
+  async findAllCombined(@Query() query: PaginationQueryDto) {
+    return this.invoicesService.findAllCombined(query);
   }
 
   /**

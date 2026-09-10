@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   Post,
+  Query,
   Req,
   UseGuards,
 } from "@nestjs/common";
@@ -12,6 +13,7 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
 import { Roles } from "../auth/roles.decorator";
 import { AddTransactionDto } from "./dto/add-transaction.dto";
+import { PaginationQueryDto } from "../common/pagination.dto";
 
 @Controller("weights")
 @UseGuards(JwtAuthGuard)
@@ -32,8 +34,8 @@ export class WeightsController {
   @Get("all")
   @UseGuards(RolesGuard)
   @Roles("ADMIN")
-  async getAllWeights() {
-    return this.weightsService.getAllAccounts();
+  async getAllWeights(@Query() query: PaginationQueryDto) {
+    return this.weightsService.getAllAccounts(query);
   }
 
   /**

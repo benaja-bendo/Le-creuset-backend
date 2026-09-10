@@ -22,7 +22,9 @@ describe("OrdersController", () => {
   beforeEach(async () => {
     ordersService = {
       findByUser: jest.fn().mockResolvedValue([fakeOrder()]),
-      findAll: jest.fn().mockResolvedValue([fakeOrder()]),
+      findAll: jest
+        .fn()
+        .mockResolvedValue({ items: [fakeOrder()], total: 1, page: 1, limit: 20 }),
       create: jest.fn().mockResolvedValue(fakeOrder()),
       createManual: jest
         .fn()
@@ -61,8 +63,8 @@ describe("OrdersController", () => {
 
   describe("GET /all", () => {
     it("should return all orders", async () => {
-      await controller.getAllOrders();
-      expect(ordersService.findAll).toHaveBeenCalled();
+      await controller.getAllOrders({} as any);
+      expect(ordersService.findAll).toHaveBeenCalledWith({});
     });
   });
 

@@ -7,7 +7,12 @@ import {
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateInvoiceDto } from "./dto/create-invoice.dto";
 import { WeightsService } from "../weights/weights.service";
-import { BaseMetalType, OrderStatus, TransactionType } from "@prisma/client";
+import {
+  BaseMetalType,
+  OrderStatus,
+  Prisma,
+  TransactionType,
+} from "@prisma/client";
 
 /**
  * Champs de la commande exposés aux écrans "facture".
@@ -34,22 +39,123 @@ export class InvoicesService {
   ) {}
 
   /**
-   * Get all invoices (admin)
+   * Get all invoices (admin), paginée. `search` couvre le numéro de facture,
+   * la raison sociale/email du client, et le numéro de la commande liée — ce
+   * dernier manquait dans le filtre en mémoire côté front (facture de
+   * `CMD-123456` introuvable autrement qu'à l'œil).
    */
-  async findAll() {
-    return this.prisma.invoice.findMany({
-      orderBy: { createdAt: "desc" },
-      include: {
-        order: { select: ORDER_SUMMARY_SELECT },
-        user: {
-          select: {
-            id: true,
-            email: true,
-            companyName: true,
+  async findAll(query: { page?: number; limit?: number; search?: string } = {}) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const where = this.buildInvoiceSearchWhere(query.search);
+
+    const [items, total] = await Promise.all([
+      this.prisma.invoice.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        include: {
+          order: { select: ORDER_SUMMARY_SELECT },
+          user: {
+            select: {
+              id: true,
+              email: true,
+              companyName: true,
+            },
           },
         },
-      },
-    });
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.invoice.count({ where }),
+    ]);
+
+    return { items, total, page, limit };
+  }
+
+  private buildInvoiceSearchWhere(search?: string): Prisma.InvoiceWhereInput {
+    const term = search?.trim();
+    if (!term) return {};
+    return {
+      OR: [
+        { invoiceNumber: { contains: term, mode: "insensitive" } },
+        { user: { companyName: { contains: term, mode: "insensitive" } } },
+        { user: { email: { contains: term, mode: "insensitive" } } },
+        { order: { orderNumber: { contains: term, mode: "insensitive" } } },
+      ],
+    };
+  }
+
+  private buildInvoiceGroupSearchWhere(
+    search?: string,
+  ): Prisma.InvoiceGroupWhereInput {
+    const term = search?.trim();
+    if (!term) return {};
+    return {
+      OR: [
+        { invoiceNumber: { contains: term, mode: "insensitive" } },
+        { user: { companyName: { contains: term, mode: "insensitive" } } },
+        { user: { email: { contains: term, mode: "insensitive" } } },
+        { orders: { some: { orderNumber: { contains: term, mode: "insensitive" } } } },
+      ],
+    };
+  }
+
+  /**
+   * Vue combinée factures individuelles + groupées consommée par
+   * admin/Invoices.tsx, qui les fusionne en une seule liste triée par date.
+   * Aucune requête SQL ne trie nativement deux tables ensemble : on prend
+   * les `page * limit` lignes les plus récentes de CHAQUE table (suffisant
+   * pour garantir que la page demandée, une fois fusionnée et triée, est
+   * correcte), on fusionne en mémoire, puis on découpe. Le coût croît avec
+   * la profondeur de page — comme toute pagination par offset — mais jamais
+   * en chargeant les deux tables en entier.
+   */
+  async findAllCombined(
+    query: { page?: number; limit?: number; search?: string } = {},
+  ) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const fetchDepth = page * limit;
+
+    const invoiceWhere = this.buildInvoiceSearchWhere(query.search);
+    const groupWhere = this.buildInvoiceGroupSearchWhere(query.search);
+
+    const [invoices, groups, totalInvoices, totalGroups] = await Promise.all([
+      this.prisma.invoice.findMany({
+        where: invoiceWhere,
+        orderBy: { createdAt: "desc" },
+        take: fetchDepth,
+        include: {
+          order: { select: ORDER_SUMMARY_SELECT },
+          user: { select: { id: true, email: true, companyName: true } },
+        },
+      }),
+      this.prisma.invoiceGroup.findMany({
+        where: groupWhere,
+        orderBy: { createdAt: "desc" },
+        take: fetchDepth,
+        include: {
+          orders: { select: ORDER_SUMMARY_SELECT },
+          user: { select: { id: true, email: true, companyName: true } },
+        },
+      }),
+      this.prisma.invoice.count({ where: invoiceWhere }),
+      this.prisma.invoiceGroup.count({ where: groupWhere }),
+    ]);
+
+    const merged = [
+      ...invoices.map((invoice) => ({ ...invoice, type: "individual" as const })),
+      ...groups.map((group) => ({ ...group, type: "group" as const })),
+    ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+    const start = (page - 1) * limit;
+
+    return {
+      items: merged.slice(start, start + limit),
+      total: totalInvoices + totalGroups,
+      page,
+      limit,
+    };
   }
 
   /**
