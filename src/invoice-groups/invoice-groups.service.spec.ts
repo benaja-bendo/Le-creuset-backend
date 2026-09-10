@@ -1,5 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { BadRequestException, NotFoundException } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { InvoiceGroupsService } from "./invoice-groups.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { createMockPrismaService, fakeOrder } from "../common/test-utils";
@@ -70,6 +71,35 @@ describe("InvoiceGroupsService", () => {
       expect(result).toEqual(group);
     });
 
+    it("should use the requested issueDate instead of the creation date", async () => {
+      const orders = [
+        fakeOrder({ id: "order-1", userId: "user-1", invoiceGroupId: null }),
+        fakeOrder({ id: "order-2", userId: "user-1", invoiceGroupId: null }),
+      ];
+      const txMock = {
+        order: {
+          findMany: jest.fn().mockResolvedValue(orders),
+          updateMany: jest.fn().mockResolvedValue({ count: 2 }),
+        },
+        invoice: {
+          findMany: jest.fn().mockResolvedValue([]),
+        },
+        invoiceGroup: {
+          create: jest.fn().mockResolvedValue({ id: "group-1" }),
+          findUnique: jest.fn().mockResolvedValue({ id: "group-1" }),
+        },
+      };
+      prisma.$transaction.mockImplementation((cb: any) => cb(txMock));
+
+      await service.create({ ...dto, issueDate: "2026-01-15" } as any);
+
+      expect(txMock.invoiceGroup.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ issueDate: new Date("2026-01-15") }),
+        }),
+      );
+    });
+
     it("should throw BadRequestException if some orders not found", async () => {
       const txMock = {
         order: {
@@ -117,6 +147,59 @@ describe("InvoiceGroupsService", () => {
       await expect(service.create(dto as any)).rejects.toThrow(
         BadRequestException,
       );
+    });
+
+    it("should turn a duplicate invoice number into a clear error", async () => {
+      const orders = [
+        fakeOrder({ id: "order-1", userId: "user-1", invoiceGroupId: null }),
+        fakeOrder({ id: "order-2", userId: "user-1", invoiceGroupId: null }),
+      ];
+      const conflict = new Prisma.PrismaClientKnownRequestError(
+        "Unique constraint failed",
+        {
+          code: "P2002",
+          clientVersion: "5.0.0",
+          meta: { target: ["invoiceNumber"] },
+        },
+      );
+      const txMock = {
+        order: { findMany: jest.fn().mockResolvedValue(orders) },
+        invoice: { findMany: jest.fn().mockResolvedValue([]) },
+        invoiceGroup: { create: jest.fn().mockRejectedValue(conflict) },
+      };
+      prisma.$transaction.mockImplementation((cb: any) => cb(txMock));
+
+      await expect(service.create(dto as any)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+  });
+
+  describe("suggestNextInvoiceGroupNumber", () => {
+    it("should suggest 0001 for the year when no group exists yet", async () => {
+      prisma.invoiceGroup.findFirst.mockResolvedValue(null);
+
+      const result = await service.suggestNextInvoiceGroupNumber();
+
+      const year = new Date().getFullYear();
+      expect(result).toBe(`FAC-GRP-${year}-0001`);
+      expect(prisma.invoiceGroup.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { invoiceNumber: { startsWith: `FAC-GRP-${year}-` } },
+          orderBy: { invoiceNumber: "desc" },
+        }),
+      );
+    });
+
+    it("should increment the latest group invoice number for the year", async () => {
+      const year = new Date().getFullYear();
+      prisma.invoiceGroup.findFirst.mockResolvedValue({
+        invoiceNumber: `FAC-GRP-${year}-0003`,
+      });
+
+      const result = await service.suggestNextInvoiceGroupNumber();
+
+      expect(result).toBe(`FAC-GRP-${year}-0004`);
     });
   });
 

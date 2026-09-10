@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   NotFoundException,
 } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { InvoicesService } from "./invoices.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { WeightsService } from "../weights/weights.service";
@@ -16,15 +17,17 @@ import {
 describe("InvoicesService", () => {
   let service: InvoicesService;
   let prisma: ReturnType<typeof createMockPrismaService>;
+  let weightsService: ReturnType<typeof createMockWeightsService>;
 
   beforeEach(async () => {
     prisma = createMockPrismaService();
+    weightsService = createMockWeightsService();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         InvoicesService,
         { provide: PrismaService, useValue: prisma },
-        { provide: WeightsService, useValue: createMockWeightsService() },
+        { provide: WeightsService, useValue: weightsService },
       ],
     }).compile();
 
@@ -192,7 +195,9 @@ describe("InvoicesService", () => {
 
   describe("create", () => {
     it("should create an invoice", async () => {
-      prisma.invoice.create.mockResolvedValue(fakeInvoice());
+      const txMock = createMockPrismaService();
+      txMock.invoice.create.mockResolvedValue(fakeInvoice());
+      prisma.$transaction.mockImplementation((cb: any) => cb(txMock));
 
       const dto = {
         invoiceNumber: "INV-001",
@@ -204,7 +209,7 @@ describe("InvoicesService", () => {
 
       const result = await service.create(dto);
 
-      expect(prisma.invoice.create).toHaveBeenCalledWith(
+      expect(txMock.invoice.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
             invoiceNumber: "INV-001",
@@ -213,6 +218,83 @@ describe("InvoicesService", () => {
         }),
       );
       expect(result).toEqual(fakeInvoice());
+    });
+
+    it("should create the invoice and the metal deposit in the same transaction", async () => {
+      // La facture et le dépôt métal doivent réussir ou échouer ensemble :
+      // avant ce correctif, le second appel se faisait hors de toute
+      // transaction et pouvait échouer sans laisser de trace côté facture.
+      const txMock = createMockPrismaService();
+      txMock.invoice.create.mockResolvedValue(fakeInvoice());
+      prisma.$transaction.mockImplementation((cb: any) => cb(txMock));
+
+      const dto = {
+        invoiceNumber: "INV-002",
+        userId: "user-1",
+        fileUrl: "/invoice.pdf",
+        metalType: "OR_FIN",
+        metalWeight: 5,
+        metalTransactionType: "CREDIT",
+      };
+
+      await service.create(dto as any);
+
+      expect(weightsService.addTransactionByUserMetal).toHaveBeenCalledWith(
+        "user-1",
+        "OR_FIN",
+        expect.objectContaining({ type: "CREDIT", amount: 5 }),
+        txMock,
+      );
+    });
+
+    it("should turn a duplicate invoice number into a clear error", async () => {
+      const txMock = createMockPrismaService();
+      const conflict = new Prisma.PrismaClientKnownRequestError(
+        "Unique constraint failed",
+        {
+          code: "P2002",
+          clientVersion: "5.0.0",
+          meta: { target: ["invoiceNumber"] },
+        },
+      );
+      txMock.invoice.create.mockRejectedValue(conflict);
+      prisma.$transaction.mockImplementation((cb: any) => cb(txMock));
+
+      await expect(
+        service.create({
+          invoiceNumber: "INV-DUP",
+          userId: "user-1",
+          fileUrl: "/invoice.pdf",
+        } as any),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe("suggestNextInvoiceNumber", () => {
+    it("should suggest 0001 for the year when no invoice exists yet", async () => {
+      prisma.invoice.findFirst.mockResolvedValue(null);
+
+      const result = await service.suggestNextInvoiceNumber();
+
+      const year = new Date().getFullYear();
+      expect(result).toBe(`FAC-${year}-0001`);
+      expect(prisma.invoice.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { invoiceNumber: { startsWith: `FAC-${year}-` } },
+          orderBy: { invoiceNumber: "desc" },
+        }),
+      );
+    });
+
+    it("should increment the latest invoice number for the year", async () => {
+      const year = new Date().getFullYear();
+      prisma.invoice.findFirst.mockResolvedValue({
+        invoiceNumber: `FAC-${year}-0099`,
+      });
+
+      const result = await service.suggestNextInvoiceNumber();
+
+      expect(result).toBe(`FAC-${year}-0100`);
     });
   });
 

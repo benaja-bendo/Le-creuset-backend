@@ -7,7 +7,9 @@ export const CreateInvoiceSchema = z.object({
   orderId: z.string().optional(),
   userId: z.string().min(1, { message: "Client requis" }),
   fileUrl: z.string().min(1, { message: "Fichier requis" }),
-  amount: z.number().positive().optional().nullable(),
+  // Un avoir ou un geste commercial peut légitimement porter un montant nul —
+  // seule une valeur négative n'a pas de sens pour une facture.
+  amount: z.number().nonnegative().optional().nullable(),
   issueDate: z.string().optional(), // ISO date string
   notes: z.string().optional(),
   // Transaction métal optionnelle à enregistrer en même temps que la facture

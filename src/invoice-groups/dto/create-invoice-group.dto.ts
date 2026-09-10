@@ -10,8 +10,14 @@ export const CreateInvoiceGroupSchema = z.object({
       "Un groupe de facturation doit contenir au moins deux commandes ; une seule commande doit passer par une facture individuelle.",
   }),
   invoiceNumber: z.string().min(1, { message: "Numéro de facture requis" }),
-  fileUrl: z.string().optional(),
-  amount: z.number().positive().optional().nullable(),
+  // Le front envoie `null` (pas juste absent) quand aucun fichier n'a été
+  // choisi — une facture groupée peut légitimement se créer sans PDF encore
+  // disponible, à ajouter plus tard via PATCH.
+  fileUrl: z.string().optional().nullable(),
+  // Même règle que pour une facture individuelle : un montant nul est valide,
+  // seul un montant négatif ne l'est pas.
+  amount: z.number().nonnegative().optional().nullable(),
+  issueDate: z.string().optional(), // ISO date string
   notes: z.string().optional(),
   baseMetalType: z
     .enum(["OR_FIN", "ARGENT_FIN", "PLATINE", "PALLADIUM"])

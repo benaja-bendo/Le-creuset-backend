@@ -6,6 +6,8 @@ import {
 import { CreateInvoiceGroupDto } from "./dto/create-invoice-group.dto";
 import { UpdateInvoiceGroupDto } from "./dto/update-invoice-group.dto";
 import { PrismaService } from "../prisma/prisma.service";
+import { suggestNextNumber } from "../common/sequence-number";
+import { rethrowUniqueConstraint } from "../common/prisma-errors";
 import { OrderStatus, Prisma } from "@prisma/client";
 
 @Injectable()
@@ -13,65 +15,90 @@ export class InvoiceGroupsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(dto: CreateInvoiceGroupDto) {
-    return this.prisma.$transaction(async (tx) => {
-      // 1. Verify orders exist, belong to user, and are not already grouped
-      const orders = await tx.order.findMany({
-        where: {
-          id: { in: dto.orderIds },
-          userId: dto.userId,
-        },
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        // 1. Verify orders exist, belong to user, and are not already grouped
+        const orders = await tx.order.findMany({
+          where: {
+            id: { in: dto.orderIds },
+            userId: dto.userId,
+          },
+        });
+
+        if (orders.length !== dto.orderIds.length) {
+          throw new BadRequestException(
+            "Certaines commandes sont introuvables ou ne vous appartiennent pas.",
+          );
+        }
+
+        const alreadyGrouped = orders.filter((o) => o.invoiceGroupId !== null);
+        if (alreadyGrouped.length > 0) {
+          throw new BadRequestException(
+            "Certaines commandes font déjà partie d'un groupe de facturation.",
+          );
+        }
+
+        // Invoice et InvoiceGroup sont deux tables sans lien : ce contrôle ne
+        // voit pas une commande déjà couverte par une facture individuelle.
+        // Sans lui, une commande clôturée via POST /orders/:id/close peut être
+        // regroupée et refacturée une seconde fois.
+        const alreadyInvoiced = await tx.invoice.findMany({
+          where: { orderId: { in: dto.orderIds } },
+          select: { orderId: true },
+        });
+        if (alreadyInvoiced.length > 0) {
+          throw new BadRequestException(
+            "Certaines commandes ont déjà une facture individuelle et ne peuvent pas être groupées.",
+          );
+        }
+
+        // 2. Create the invoice group
+        const group = await tx.invoiceGroup.create({
+          data: {
+            invoiceNumber: dto.invoiceNumber,
+            userId: dto.userId,
+            fileUrl: dto.fileUrl,
+            amount: dto.amount,
+            issueDate: dto.issueDate ? new Date(dto.issueDate) : new Date(),
+            notes: dto.notes,
+            baseMetalType: dto.baseMetalType,
+          },
+        });
+
+        // 3. Link orders to the new group
+        await tx.order.updateMany({
+          where: { id: { in: dto.orderIds } },
+          data: { invoiceGroupId: group.id },
+        });
+
+        return await tx.invoiceGroup.findUnique({
+          where: { id: group.id },
+          include: { orders: true },
+        });
       });
+    } catch (err) {
+      rethrowUniqueConstraint(
+        err,
+        "invoiceNumber",
+        `Le numéro de facture "${dto.invoiceNumber}" existe déjà. Réessayez.`,
+      );
+    }
+  }
 
-      if (orders.length !== dto.orderIds.length) {
-        throw new BadRequestException(
-          "Certaines commandes sont introuvables ou ne vous appartiennent pas.",
-        );
-      }
-
-      const alreadyGrouped = orders.filter((o) => o.invoiceGroupId !== null);
-      if (alreadyGrouped.length > 0) {
-        throw new BadRequestException(
-          "Certaines commandes font déjà partie d'un groupe de facturation.",
-        );
-      }
-
-      // Invoice et InvoiceGroup sont deux tables sans lien : ce contrôle ne
-      // voit pas une commande déjà couverte par une facture individuelle.
-      // Sans lui, une commande clôturée via POST /orders/:id/close peut être
-      // regroupée et refacturée une seconde fois.
-      const alreadyInvoiced = await tx.invoice.findMany({
-        where: { orderId: { in: dto.orderIds } },
-        select: { orderId: true },
+  /**
+   * Suggestion pour pré-remplir le champ numéro de facture côté front —
+   * jusqu'ici généré côté client via `Date.now()`. Lecture seule : voir
+   * `suggestNextNumber`.
+   */
+  async suggestNextInvoiceGroupNumber(): Promise<string> {
+    return suggestNextNumber(async (yearPrefix) => {
+      const last = await this.prisma.invoiceGroup.findFirst({
+        where: { invoiceNumber: { startsWith: yearPrefix } },
+        orderBy: { invoiceNumber: "desc" },
+        select: { invoiceNumber: true },
       });
-      if (alreadyInvoiced.length > 0) {
-        throw new BadRequestException(
-          "Certaines commandes ont déjà une facture individuelle et ne peuvent pas être groupées.",
-        );
-      }
-
-      // 2. Create the invoice group
-      const group = await tx.invoiceGroup.create({
-        data: {
-          invoiceNumber: dto.invoiceNumber,
-          userId: dto.userId,
-          fileUrl: dto.fileUrl,
-          amount: dto.amount,
-          notes: dto.notes,
-          baseMetalType: dto.baseMetalType,
-        },
-      });
-
-      // 3. Link orders to the new group
-      await tx.order.updateMany({
-        where: { id: { in: dto.orderIds } },
-        data: { invoiceGroupId: group.id },
-      });
-
-      return await tx.invoiceGroup.findUnique({
-        where: { id: group.id },
-        include: { orders: true },
-      });
-    });
+      return last?.invoiceNumber;
+    }, "FAC-GRP");
   }
 
   async findAll(query: { page?: number; limit?: number; search?: string } = {}) {

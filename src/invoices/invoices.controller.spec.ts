@@ -20,6 +20,7 @@ describe("InvoicesController", () => {
       findByOrderId: jest.fn().mockResolvedValue([fakeInvoice()]),
       create: jest.fn().mockResolvedValue(fakeInvoice()),
       delete: jest.fn().mockResolvedValue(fakeInvoice()),
+      suggestNextInvoiceNumber: jest.fn().mockResolvedValue("FAC-2026-0001"),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -81,6 +82,14 @@ describe("InvoicesController", () => {
     it("should return an invoice by id", async () => {
       await controller.findById("invoice-1");
       expect(invoicesService.findById).toHaveBeenCalledWith("invoice-1");
+    });
+  });
+
+  describe("GET /next-number", () => {
+    it("should return the suggested invoice number", async () => {
+      const result = await controller.getNextInvoiceNumber();
+      expect(invoicesService.suggestNextInvoiceNumber).toHaveBeenCalled();
+      expect(result).toEqual({ invoiceNumber: "FAC-2026-0001" });
     });
   });
 

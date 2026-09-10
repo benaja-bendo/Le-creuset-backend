@@ -83,6 +83,19 @@ export class InvoicesController {
   }
 
   /**
+   * Suggestion de numéro pour pré-remplir le formulaire de nouvelle facture.
+   * Doit être déclarée avant `:id` pour ne pas être interprétée comme un id.
+   */
+  @Get("next-number")
+  @UseGuards(RolesGuard)
+  @Roles("ADMIN")
+  async getNextInvoiceNumber() {
+    return {
+      invoiceNumber: await this.invoicesService.suggestNextInvoiceNumber(),
+    };
+  }
+
+  /**
    * Get invoice by ID — aucun consommateur front actuellement (vérifié :
    * seul un DELETE /invoices/:id existe côté front, route distincte déjà
    * gated ADMIN plus bas). Restreint à ADMIN plutôt que d'ajouter un contrôle

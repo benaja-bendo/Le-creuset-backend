@@ -7,6 +7,8 @@ import {
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateInvoiceDto } from "./dto/create-invoice.dto";
 import { WeightsService } from "../weights/weights.service";
+import { suggestNextNumber } from "../common/sequence-number";
+import { rethrowUniqueConstraint } from "../common/prisma-errors";
 import {
   BaseMetalType,
   OrderStatus,
@@ -228,46 +230,76 @@ export class InvoicesService {
   }
 
   /**
-   * Create a new invoice (admin)
+   * Create a new invoice (admin). La facture et le dépôt métal optionnel
+   * qui l'accompagne sont créés dans la MÊME transaction : avant, un
+   * échec du second appel laissait la facture exister sans son dépôt
+   * métal, sans aucune trace de l'échec.
    */
   async create(dto: CreateInvoiceDto) {
-    const invoice = await this.prisma.invoice.create({
-      data: {
-        invoiceNumber: dto.invoiceNumber,
-        orderId: dto.orderId || null,
-        userId: dto.userId,
-        fileUrl: dto.fileUrl,
-        amount: dto.amount,
-        issueDate: dto.issueDate ? new Date(dto.issueDate) : new Date(),
-        notes: dto.notes,
-      },
-      include: {
-        order: { select: ORDER_SUMMARY_SELECT },
-        user: {
-          select: {
-            id: true,
-            email: true,
-            companyName: true,
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const invoice = await tx.invoice.create({
+          data: {
+            invoiceNumber: dto.invoiceNumber,
+            orderId: dto.orderId || null,
+            userId: dto.userId,
+            fileUrl: dto.fileUrl,
+            amount: dto.amount,
+            issueDate: dto.issueDate ? new Date(dto.issueDate) : new Date(),
+            notes: dto.notes,
           },
-        },
-      },
-    });
+          include: {
+            order: { select: ORDER_SUMMARY_SELECT },
+            user: {
+              select: {
+                id: true,
+                email: true,
+                companyName: true,
+              },
+            },
+          },
+        });
 
-    // Transaction métal optionnelle jointe à la facture (ex: dépôt métal)
-    if (dto.metalType && dto.metalWeight) {
-      await this.weightsService.addTransactionByUserMetal(
-        dto.userId,
-        dto.metalType as BaseMetalType,
-        {
-          type: (dto.metalTransactionType as TransactionType) ?? "CREDIT",
-          amount: dto.metalWeight,
-          label: `Facture ${dto.invoiceNumber}`,
-          date: dto.issueDate ? new Date(dto.issueDate) : new Date(),
-        },
+        // Transaction métal optionnelle jointe à la facture (ex: dépôt métal)
+        if (dto.metalType && dto.metalWeight) {
+          await this.weightsService.addTransactionByUserMetal(
+            dto.userId,
+            dto.metalType as BaseMetalType,
+            {
+              type: (dto.metalTransactionType as TransactionType) ?? "CREDIT",
+              amount: dto.metalWeight,
+              label: `Facture ${dto.invoiceNumber}`,
+              date: dto.issueDate ? new Date(dto.issueDate) : new Date(),
+            },
+            tx,
+          );
+        }
+
+        return invoice;
+      });
+    } catch (err) {
+      rethrowUniqueConstraint(
+        err,
+        "invoiceNumber",
+        `Le numéro de facture "${dto.invoiceNumber}" existe déjà. Réessayez.`,
       );
     }
+  }
 
-    return invoice;
+  /**
+   * Suggestion pour pré-remplir le champ numéro de facture côté front —
+   * jusqu'ici saisi à la main sans aide. Lecture seule : voir
+   * `suggestNextNumber`.
+   */
+  async suggestNextInvoiceNumber(): Promise<string> {
+    return suggestNextNumber(async (yearPrefix) => {
+      const last = await this.prisma.invoice.findFirst({
+        where: { invoiceNumber: { startsWith: yearPrefix } },
+        orderBy: { invoiceNumber: "desc" },
+        select: { invoiceNumber: true },
+      });
+      return last?.invoiceNumber;
+    }, "FAC");
   }
 
   /**

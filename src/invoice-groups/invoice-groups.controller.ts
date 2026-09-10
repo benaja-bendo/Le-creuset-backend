@@ -34,6 +34,19 @@ export class InvoiceGroupsController {
     return this.invoiceGroupsService.findAll(query);
   }
 
+  /**
+   * Suggestion de numéro pour pré-remplir le formulaire de facture groupée.
+   * Doit être déclarée avant `:id` pour ne pas être interprétée comme un id.
+   */
+  @Get("next-number")
+  @Roles("ADMIN")
+  async getNextInvoiceNumber() {
+    return {
+      invoiceNumber:
+        await this.invoiceGroupsService.suggestNextInvoiceGroupNumber(),
+    };
+  }
+
   @Get(":id")
   @Roles("ADMIN")
   findOne(@Param("id") id: string) {

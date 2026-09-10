@@ -1,5 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { BadRequestException, NotFoundException } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { OrdersService } from "./orders.service";
 import { PrismaService } from "../prisma/prisma.service";
 import {
@@ -84,35 +85,13 @@ describe("OrdersService", () => {
   /*  create / createManual                                            */
   /* ================================================================ */
 
-  describe("create", () => {
-    it("should create an order with EN_ATTENTE status", async () => {
-      prisma.order.create.mockResolvedValue(fakeOrder());
-
-      await service.create({
-        userId: "user-1",
-        stlFileUrl: "/file.stl",
-        materialType: "OR_JAUNE_750" as any,
-        notes: "test",
-      });
-
-      expect(prisma.order.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            userId: "user-1",
-            status: "EN_ATTENTE",
-          }),
-        }),
-      );
-    });
-  });
-
   describe("createManual", () => {
     it("should create a manual order with isManualOrder=true", async () => {
       prisma.order.create.mockResolvedValue(fakeOrder({ isManualOrder: true }));
 
       await service.createManual({
         userId: "user-1",
-        materialType: "OR_JAUNE_750",
+        materialType: "OR_750_JAUNE",
         notes: "manual",
       });
 
@@ -123,6 +102,113 @@ describe("OrdersService", () => {
           }),
         }),
       );
+    });
+
+    it("should pass the requested quantity through to Prisma", async () => {
+      prisma.order.create.mockResolvedValue(fakeOrder({ quantity: 5 }));
+
+      await service.createManual({
+        userId: "user-1",
+        materialType: "OR_750_JAUNE",
+        quantity: 5,
+      });
+
+      expect(prisma.order.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ quantity: 5 }),
+        }),
+      );
+    });
+
+    it("should reject a zero or negative quantity", async () => {
+      await expect(
+        service.createManual({
+          userId: "user-1",
+          materialType: "OR_750_JAUNE",
+          quantity: 0,
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.order.create).not.toHaveBeenCalled();
+    });
+
+    it("should reject a non-integer quantity", async () => {
+      await expect(
+        service.createManual({
+          userId: "user-1",
+          materialType: "OR_750_JAUNE",
+          quantity: 1.5,
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.order.create).not.toHaveBeenCalled();
+    });
+
+    it("should generate a sequential order number when none is provided", async () => {
+      prisma.order.findFirst.mockResolvedValue(null);
+      prisma.order.create.mockResolvedValue(fakeOrder());
+
+      await service.createManual({ userId: "user-1" });
+
+      const year = new Date().getFullYear();
+      expect(prisma.order.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            orderNumber: `CMD-${year}-0001`,
+          }),
+        }),
+      );
+    });
+
+    it("should use the provided order number instead of generating one", async () => {
+      prisma.order.create.mockResolvedValue(fakeOrder());
+
+      await service.createManual({ userId: "user-1", orderNumber: "CMD-CUSTOM" });
+
+      expect(prisma.order.findFirst).not.toHaveBeenCalled();
+      expect(prisma.order.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ orderNumber: "CMD-CUSTOM" }),
+        }),
+      );
+    });
+
+    it("should turn a duplicate order number into a clear error", async () => {
+      const conflict = new Prisma.PrismaClientKnownRequestError(
+        "Unique constraint failed",
+        { code: "P2002", clientVersion: "5.0.0", meta: { target: ["orderNumber"] } },
+      );
+      prisma.order.create.mockRejectedValue(conflict);
+
+      await expect(
+        service.createManual({ userId: "user-1", orderNumber: "CMD-DUP" }),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe("suggestNextOrderNumber", () => {
+    it("should suggest 0001 for the year when no order exists yet", async () => {
+      prisma.order.findFirst.mockResolvedValue(null);
+
+      const result = await service.suggestNextOrderNumber();
+
+      const year = new Date().getFullYear();
+      expect(result).toBe(`CMD-${year}-0001`);
+      expect(prisma.order.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { orderNumber: { startsWith: `CMD-${year}-` } },
+          orderBy: { orderNumber: "desc" },
+        }),
+      );
+    });
+
+    it("should increment the latest order number for the year", async () => {
+      const year = new Date().getFullYear();
+      prisma.order.findFirst.mockResolvedValue({
+        orderNumber: `CMD-${year}-0041`,
+      });
+
+      const result = await service.suggestNextOrderNumber();
+
+      expect(result).toBe(`CMD-${year}-0042`);
     });
   });
 
@@ -198,22 +284,58 @@ describe("OrdersService", () => {
         service.update("nonexistent", { notes: "x" }),
       ).rejects.toThrow(NotFoundException);
     });
+
+    it("should update the quantity", async () => {
+      prisma.order.findUnique.mockResolvedValue(fakeOrder());
+      prisma.order.update.mockResolvedValue(fakeOrder({ quantity: 3 }));
+
+      const result = await service.update("order-1", { quantity: 3 });
+      expect(result.quantity).toBe(3);
+    });
+
+    it("should reject a zero or negative quantity", async () => {
+      prisma.order.findUnique.mockResolvedValue(fakeOrder());
+
+      await expect(
+        service.update("order-1", { quantity: -1 }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.order.update).not.toHaveBeenCalled();
+    });
   });
 
   describe("delete", () => {
-    it("should delete related invoices then the order", async () => {
-      prisma.order.findUnique.mockResolvedValue(fakeOrder());
-      prisma.invoice.deleteMany.mockResolvedValue({ count: 1 });
+    it("should delete an order with no linked invoice", async () => {
+      prisma.order.findUnique.mockResolvedValue(fakeOrder({ invoiceGroupId: null }));
+      prisma.invoice.count.mockResolvedValue(0);
       prisma.order.delete.mockResolvedValue(fakeOrder());
 
       await service.delete("order-1");
 
-      expect(prisma.invoice.deleteMany).toHaveBeenCalledWith({
-        where: { orderId: "order-1" },
-      });
       expect(prisma.order.delete).toHaveBeenCalledWith({
         where: { id: "order-1" },
       });
+    });
+
+    it("should reject deleting an order with an individual invoice", async () => {
+      prisma.order.findUnique.mockResolvedValue(fakeOrder({ invoiceGroupId: null }));
+      prisma.invoice.count.mockResolvedValue(1);
+
+      await expect(service.delete("order-1")).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(prisma.order.delete).not.toHaveBeenCalled();
+    });
+
+    it("should reject deleting an order that belongs to an invoice group", async () => {
+      prisma.order.findUnique.mockResolvedValue(
+        fakeOrder({ invoiceGroupId: "group-1" }),
+      );
+      prisma.invoice.count.mockResolvedValue(0);
+
+      await expect(service.delete("order-1")).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(prisma.order.delete).not.toHaveBeenCalled();
     });
 
     it("should throw NotFoundException if order not found", async () => {
@@ -271,7 +393,7 @@ describe("OrdersService", () => {
       const order = fakeOrder({
         orderNumber: null,
         user: fakeUser(),
-        materialType: "OR_JAUNE_750",
+        materialType: "OR_750_JAUNE",
       });
       const account = fakeMetalAccount({ metalType: "OR_FIN", balance: 100 });
 
@@ -290,7 +412,7 @@ describe("OrdersService", () => {
         invoiceFileUrl: "/inv.pdf",
         finalWeight: 10,
         debitWeightAccount: true,
-        metalType: "OR_JAUNE_750",
+        metalType: "OR_750_JAUNE",
       });
 
       expect(txMock.transaction.create).toHaveBeenCalledWith(
@@ -305,7 +427,7 @@ describe("OrdersService", () => {
     it("should debit metal account when requested", async () => {
       const order = fakeOrder({
         user: fakeUser(),
-        materialType: "OR_JAUNE_750",
+        materialType: "OR_750_JAUNE",
       });
       const account = fakeMetalAccount({ metalType: "OR_FIN", balance: 100 });
 
@@ -328,7 +450,7 @@ describe("OrdersService", () => {
         finalAmount: 500,
         finalWeight: 10,
         debitWeightAccount: true,
-        metalType: "OR_JAUNE_750",
+        metalType: "OR_750_JAUNE",
       });
 
       expect(txMock.metalAccount.findFirst).toHaveBeenCalledWith(
@@ -361,6 +483,70 @@ describe("OrdersService", () => {
           data: expect.objectContaining({ balance: { decrement: 10 } }),
         }),
       );
+    });
+
+    it("should reject debiting with no finalWeight instead of silently skipping it", async () => {
+      const order = fakeOrder({ user: fakeUser() });
+      const txMock = createMockPrismaService();
+      txMock.order.findUnique.mockResolvedValue(order);
+      txMock.invoice.create.mockResolvedValue(fakeInvoice());
+      txMock.order.update.mockResolvedValue({ ...order, status: "EXPEDIE" });
+      prisma.order.findUnique.mockResolvedValue(order);
+      prisma.$transaction.mockImplementation((cb: any) => cb(txMock));
+
+      await expect(
+        service.closeOrder("order-1", {
+          invoiceNumber: "INV-005",
+          invoiceFileUrl: "/inv.pdf",
+          debitWeightAccount: true,
+          metalType: "OR_750_JAUNE",
+          // finalWeight omis
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(txMock.metalAccount.update).not.toHaveBeenCalled();
+    });
+
+    it("should reject an unrecognized metal type instead of silently skipping the debit", async () => {
+      const order = fakeOrder({ user: fakeUser() });
+      const txMock = createMockPrismaService();
+      txMock.order.findUnique.mockResolvedValue(order);
+      txMock.invoice.create.mockResolvedValue(fakeInvoice());
+      txMock.order.update.mockResolvedValue({ ...order, status: "EXPEDIE" });
+      prisma.order.findUnique.mockResolvedValue(order);
+      prisma.$transaction.mockImplementation((cb: any) => cb(txMock));
+
+      await expect(
+        service.closeOrder("order-1", {
+          invoiceNumber: "INV-006",
+          invoiceFileUrl: "/inv.pdf",
+          finalWeight: 10,
+          debitWeightAccount: true,
+          metalType: "BITCOIN",
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(txMock.metalAccount.findFirst).not.toHaveBeenCalled();
+    });
+
+    it("should reject debiting a metal account the client doesn't have instead of silently skipping it", async () => {
+      const order = fakeOrder({ user: fakeUser() });
+      const txMock = createMockPrismaService();
+      txMock.order.findUnique.mockResolvedValue(order);
+      txMock.invoice.create.mockResolvedValue(fakeInvoice());
+      txMock.order.update.mockResolvedValue({ ...order, status: "EXPEDIE" });
+      txMock.metalAccount.findFirst.mockResolvedValue(null);
+      prisma.order.findUnique.mockResolvedValue(order);
+      prisma.$transaction.mockImplementation((cb: any) => cb(txMock));
+
+      await expect(
+        service.closeOrder("order-1", {
+          invoiceNumber: "INV-007",
+          invoiceFileUrl: "/inv.pdf",
+          finalWeight: 10,
+          debitWeightAccount: true,
+          metalType: "OR_750_JAUNE",
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(txMock.transaction.create).not.toHaveBeenCalled();
     });
 
     it("should throw NotFoundException if order not found", async () => {

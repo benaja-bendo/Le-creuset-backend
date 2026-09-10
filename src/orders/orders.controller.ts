@@ -18,6 +18,8 @@ import { RolesGuard } from "../auth/roles.guard";
 import { Roles } from "../auth/roles.decorator";
 import { OrderStatus } from "@prisma/client";
 import { CloseOrderDto } from "./dto/close-order.dto";
+import { CreateManualOrderDto } from "./dto/create-order.dto";
+import { UpdateOrderDto } from "./dto/update-order.dto";
 import { MailService } from "../mail/mail.service";
 import { orderReference } from "../common/order-ref";
 import { PaginationQueryDto } from "../common/pagination.dto";
@@ -42,45 +44,27 @@ export class OrdersController {
     return this.ordersService.findAll(query);
   }
 
-  @Post()
-  async create(
-    @Req() req: any,
-    @Body()
-    dto: {
-      stlFileUrl?: string;
-      estimatedPrice?: number;
-      materialType?: string;
-      notes?: string;
-    },
-  ) {
-    return this.ordersService.create({
-      userId: req.user.id,
-      ...dto,
-      materialType: dto.materialType as any,
-    });
-  }
-
+  // Il existait un POST / (self-service, sans @Roles) permettant à n'importe
+  // quel client connecté de créer une commande en fixant son propre prix —
+  // contraire à la règle métier (les commandes arrivent par email, pas de
+  // parcours self-service) et sans consommateur front. Retiré plutôt que
+  // gardé "juste au cas où" : ne pas le réintroduire sans validation client.
   @Post("manual")
   @UseGuards(RolesGuard)
   @Roles("ADMIN")
-  async createManual(
-    @Body()
-    dto: {
-      userId: string;
-      estimatedPrice?: number;
-      materialType?: string;
-      notes?: string;
-      orderNumber?: string;
-    },
-  ) {
+  async createManual(@Body() dto: CreateManualOrderDto) {
     return this.ordersService.createManual(dto);
   }
 
-  @Get()
+  /**
+   * Suggestion de numéro pour pré-remplir le formulaire de saisie manuelle.
+   * Doit être déclarée avant `:id` pour ne pas être interprétée comme un id.
+   */
+  @Get("next-number")
   @UseGuards(RolesGuard)
   @Roles("ADMIN")
-  async getAll(@Query() query: PaginationQueryDto) {
-    return this.ordersService.findAll(query);
+  async getNextOrderNumber() {
+    return { orderNumber: await this.ordersService.suggestNextOrderNumber() };
   }
 
   /**
@@ -112,11 +96,8 @@ export class OrdersController {
   @Patch(":id")
   @UseGuards(RolesGuard)
   @Roles("ADMIN")
-  async update(
-    @Param("id") id: string,
-    @Body() dto: { materialType?: string; notes?: string; stlFileUrl?: string },
-  ) {
-    return this.ordersService.update(id, dto as any);
+  async update(@Param("id") id: string, @Body() dto: UpdateOrderDto) {
+    return this.ordersService.update(id, dto);
   }
 
   @Delete(":id")

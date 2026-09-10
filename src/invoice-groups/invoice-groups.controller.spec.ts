@@ -15,6 +15,9 @@ describe("InvoiceGroupsController", () => {
       findOne: jest.fn().mockResolvedValue({ id: "group-1" }),
       update: jest.fn().mockResolvedValue({ id: "group-1", notes: "updated" }),
       remove: jest.fn().mockResolvedValue({ id: "group-1" }),
+      suggestNextInvoiceGroupNumber: jest
+        .fn()
+        .mockResolvedValue("FAC-GRP-2026-0001"),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -48,6 +51,14 @@ describe("InvoiceGroupsController", () => {
     it("should return a group by id", async () => {
       await controller.findOne("group-1");
       expect(service.findOne).toHaveBeenCalledWith("group-1");
+    });
+  });
+
+  describe("GET /next-number", () => {
+    it("should return the suggested invoice number", async () => {
+      const result = await controller.getNextInvoiceNumber();
+      expect(service.suggestNextInvoiceGroupNumber).toHaveBeenCalled();
+      expect(result).toEqual({ invoiceNumber: "FAC-GRP-2026-0001" });
     });
   });
 

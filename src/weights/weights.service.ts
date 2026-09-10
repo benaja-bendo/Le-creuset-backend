@@ -114,6 +114,13 @@ export class WeightsService {
    * Ajoute un mouvement sur le compte (userId + métal de base), en créant le
    * compte si nécessaire. Utilisé notamment lors du dépôt d'une facture / dépôt métal.
    */
+  /**
+   * `tx` optionnel : quand un appelant (ex. InvoicesService.create) est déjà
+   * dans son propre `$transaction`, on réutilise ce même client plutôt que
+   * d'en ouvrir un second — sinon la facture pouvait être créée alors que le
+   * dépôt métal qui l'accompagne échouait juste après, sans aucune trace de
+   * l'échec côté facture.
+   */
   async addTransactionByUserMetal(
     userId: string,
     metalType: BaseMetalType,
@@ -123,22 +130,25 @@ export class WeightsService {
       label: string;
       date?: Date;
     },
+    tx?: Prisma.TransactionClient,
   ) {
+    const client = tx ?? this.prisma;
     // upsert atomique : le findFirst+create précédent laissait une fenêtre où
     // deux appels concurrents (ex. deux dépôts de facture au même moment)
     // pouvaient chacun ne rien trouver et créer deux comptes pour le même
     // métal. La contrainte @@unique([userId, metalType]) rend ça impossible.
-    const account = await this.prisma.metalAccount.upsert({
+    const account = await client.metalAccount.upsert({
       where: { userId_metalType: { userId, metalType } },
       create: { userId, metalType, balance: 0 },
       update: {},
     });
 
-    return this.addTransaction(account.id, data);
+    return this.addTransaction(account.id, data, tx);
   }
 
   /**
-   * Add a transaction to a metal account and update its balance
+   * Add a transaction to a metal account and update its balance. Voir la
+   * note sur `tx` ci-dessus.
    */
   async addTransaction(
     accountId: string,
@@ -148,6 +158,7 @@ export class WeightsService {
       label: string;
       date?: Date;
     },
+    existingTx?: Prisma.TransactionClient,
   ) {
     const amount = Number(data.amount);
     // { increment/decrement } se traduit par un UPDATE ... SET balance =
@@ -157,7 +168,7 @@ export class WeightsService {
     // écritures se chevauchent.
     const delta = data.type === TransactionType.CREDIT ? amount : -amount;
 
-    return this.prisma.$transaction(async (tx) => {
+    const run = async (tx: Prisma.TransactionClient) => {
       const account = await tx.metalAccount.findUnique({
         where: { id: accountId },
       });
@@ -180,7 +191,13 @@ export class WeightsService {
           lastUpdate: new Date(),
         },
       });
-    });
+    };
+
+    // Prisma ne supporte pas les transactions imbriquées : si l'appelant en a
+    // déjà une en cours, on l'utilise directement plutôt que d'en ouvrir une
+    // nouvelle.
+    if (existingTx) return run(existingTx);
+    return this.prisma.$transaction(run);
   }
 
   /**
