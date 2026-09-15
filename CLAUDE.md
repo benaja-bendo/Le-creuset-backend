@@ -82,7 +82,8 @@ npx jest
 
 ## Dettes ouvertes
 
-Détaillées dans [`docs/05-audit-retours-clients.md`](docs/05-audit-retours-clients.md). Les deux plus urgentes :
+Détaillées dans [`docs/05-audit-retours-clients.md`](docs/05-audit-retours-clients.md). La plus urgente :
 
-- 🔴 **`GET /users/:id` renvoie `passwordHash`** et toutes les données personnelles de n'importe quel utilisateur à n'importe quel compte connecté (`findById` fait un `findUnique` sans `select`).
 - 🔴 **Aucune route client sur `/invoice-groups`** : un client dont les commandes sont facturées en groupe ne voit aucune facture.
+
+~~`GET /users/:id` renvoyait `passwordHash` et les données personnelles de n'importe quel utilisateur à n'importe quel compte connecté~~ — corrigé le 15/09 (`@Roles("ADMIN")` + `findByIdForAdmin()` avec `select` explicite), voir [`docs/05-audit-retours-clients.md`](docs/05-audit-retours-clients.md).

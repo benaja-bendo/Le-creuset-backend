@@ -47,6 +47,35 @@ La référence est produite par un helper unique, [`src/common/order-ref.ts`](..
 
 ---
 
+## Retours de septembre 2026
+
+Retour du 15/09 après mise à jour de la dev pour test client. Verbatim et
+décorticage complet dans `sites/retours-clients/2026-09-15-retour-dev.md`
+(non versionné). Un seul point back, trouvé en traitant le retour plutôt
+qu'annoncé par le client lui-même.
+
+### ✅ `GET /users/:id` accessible à tout compte connecté, `passwordHash` inclus — fait
+
+Repéré dès l'audit d'août (voir "Points d'attention hors retours clients"
+ci-dessous), remonté en urgence en traitant le retour du 15/09 : en
+corrigeant l'affichage du KBIS côté admin front, le même endpoint qu'il
+fallait toucher exposait la fiche complète de n'importe quel utilisateur —
+adresse, documents, `passwordHash` — à **n'importe quel client authentifié**,
+pas seulement un admin.
+
+**Correction** ([`src/users/users.controller.ts`](../src/users/users.controller.ts),
+[`src/users/users.service.ts`](../src/users/users.service.ts)) :
+- route sous `@UseGuards(JwtAuthGuard, RolesGuard)` + `@Roles("ADMIN")`, alignée
+  sur les routes sœurs du contrôleur ;
+- nouveau `findByIdForAdmin()` avec le même `select` que `getProfile()` (sans
+  `passwordHash`), pour ne plus jamais renvoyer le modèle Prisma brut — `findById()`
+  reste inchangé pour ses seuls appelants internes (notifications de statut).
+
+PR [`Le-creuset-backend#12`](https://github.com/benaja-bendo/Le-creuset-backend/pull/12),
+déployée en prod le 15/09.
+
+---
+
 ## Retours de juin 2026
 
 ### ✅ Suppression totale et définitive d'un utilisateur — fait
@@ -110,7 +139,7 @@ Relevés en documentant le code, détaillés dans [`02-api.md`](02-api.md#points
 
 | Priorité | Problème |
 |---|---|
-| 🔴 | **`GET /users/:id` renvoie `passwordHash`** et les données personnelles de n'importe quel utilisateur à n'importe quel compte connecté — `findById()` fait un `findUnique` sans `select` |
+| ~~🔴~~ | ~~`GET /users/:id` renvoie `passwordHash`…~~ — corrigé le 15/09, voir "Retours de septembre 2026" |
 | 🟠 | `GET /orders/:id`, `GET /invoices/:id`, `GET /invoices/order/:orderId` ne vérifient pas la propriété |
 | 🟠 | `orderNumber` et numéros de facture générés par `Date.now().slice(-6)` — collision possible |
 | 🟡 | Débit poids silencieusement ignoré dans `closeOrder` si le compte du métal visé n'existe pas |
@@ -122,7 +151,7 @@ Relevés en documentant le code, détaillés dans [`02-api.md`](02-api.md#points
 
 | Priorité | Action | Où |
 |---|---|---|
-| 🔴 1 | Restreindre `GET /users/:id` et ajouter un `select` explicite | `src/users/` |
+| ~~🔴 1~~ | ~~Restreindre `GET /users/:id` et ajouter un `select` explicite~~ — fait le 15/09 | `src/users/` |
 | 🔴 2 | Exposer les factures groupées au client (route `/invoice-groups/me`) | `src/invoice-groups/` |
 | 🔴 3 | Trancher puis centraliser la numérotation des factures et des commandes | `src/invoices/`, `src/orders/` |
 | 🟠 4 | Vérifier la propriété sur les lectures par ID | `src/orders/`, `src/invoices/` |
