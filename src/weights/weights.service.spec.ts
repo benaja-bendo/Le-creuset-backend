@@ -57,7 +57,10 @@ describe("WeightsService", () => {
 
   describe("getAllAccounts", () => {
     it("should paginate by client, then return that page's accounts sorted by balance asc", async () => {
-      prisma.user.findMany.mockResolvedValue([{ id: "user-1" }, { id: "user-2" }]);
+      prisma.user.findMany.mockResolvedValue([
+        { id: "user-1" },
+        { id: "user-2" },
+      ]);
       prisma.user.count.mockResolvedValue(2);
       prisma.metalAccount.findMany.mockResolvedValue([fakeMetalAccount()]);
 

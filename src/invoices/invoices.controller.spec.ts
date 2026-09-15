@@ -9,12 +9,18 @@ describe("InvoicesController", () => {
 
   beforeEach(async () => {
     invoicesService = {
-      findAll: jest
-        .fn()
-        .mockResolvedValue({ items: [fakeInvoice()], total: 1, page: 1, limit: 20 }),
-      findAllCombined: jest
-        .fn()
-        .mockResolvedValue({ items: [fakeInvoice()], total: 1, page: 1, limit: 20 }),
+      findAll: jest.fn().mockResolvedValue({
+        items: [fakeInvoice()],
+        total: 1,
+        page: 1,
+        limit: 20,
+      }),
+      findAllCombined: jest.fn().mockResolvedValue({
+        items: [fakeInvoice()],
+        total: 1,
+        page: 1,
+        limit: 20,
+      }),
       findByUserId: jest.fn().mockResolvedValue([fakeInvoice()]),
       findById: jest.fn().mockResolvedValue(fakeInvoice()),
       findByOrderId: jest.fn().mockResolvedValue([fakeInvoice()]),

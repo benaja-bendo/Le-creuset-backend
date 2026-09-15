@@ -69,7 +69,12 @@ export class UsersService {
    * serveur, paginer aurait rendu ce filtre incohérent avec le total affiché.
    */
   async findAll(
-    query: { page?: number; limit?: number; search?: string; status?: string } = {},
+    query: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      status?: string;
+    } = {},
   ) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;

@@ -7,7 +7,12 @@ import { PrismaService } from "../prisma/prisma.service";
 import { orderReference } from "../common/order-ref";
 import { suggestNextNumber } from "../common/sequence-number";
 import { rethrowUniqueConstraint } from "../common/prisma-errors";
-import { OrderStatus, TransactionType, MetalType, Prisma } from "@prisma/client";
+import {
+  OrderStatus,
+  TransactionType,
+  MetalType,
+  Prisma,
+} from "@prisma/client";
 
 @Injectable()
 export class OrdersService {
@@ -25,7 +30,9 @@ export class OrdersService {
     });
   }
 
-  async findAll(query: { page?: number; limit?: number; status?: string } = {}) {
+  async findAll(
+    query: { page?: number; limit?: number; status?: string } = {},
+  ) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     // Le filtre de statut vivait côté front (sur les seules commandes déjà
