@@ -28,6 +28,7 @@ describe("UsersController", () => {
       findPending: jest.fn().mockResolvedValue([]),
       updateStatus: jest.fn().mockResolvedValue(fakeUser({ status: "ACTIVE" })),
       findById: jest.fn().mockResolvedValue(fakeUser()),
+      findByIdForAdmin: jest.fn().mockResolvedValue(fakeUser()),
       getProfile: jest.fn().mockResolvedValue(fakeUser()),
       updateProfile: jest.fn().mockResolvedValue(fakeUser()),
       changePassword: jest
@@ -217,9 +218,9 @@ describe("UsersController", () => {
   });
 
   describe("GET /:id", () => {
-    it("should return user by id", async () => {
+    it("should return user by id via the admin-safe lookup", async () => {
       await controller.byId("user-1");
-      expect(usersService.findById).toHaveBeenCalledWith("user-1");
+      expect(usersService.findByIdForAdmin).toHaveBeenCalledWith("user-1");
     });
   });
 });

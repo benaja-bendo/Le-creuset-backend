@@ -206,6 +206,27 @@ describe("UsersService", () => {
   });
 
   /* ================================================================ */
+  /*  findByIdForAdmin                                                 */
+  /* ================================================================ */
+
+  describe("findByIdForAdmin", () => {
+    it("should return the user without passwordHash", async () => {
+      const user = fakeUser();
+      prisma.user.findUnique.mockResolvedValue(user);
+
+      const result = await service.findByIdForAdmin("user-1");
+
+      expect(prisma.user.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "user-1" },
+          select: expect.not.objectContaining({ passwordHash: true }),
+        }),
+      );
+      expect(result).toEqual(user);
+    });
+  });
+
+  /* ================================================================ */
   /*  updateProfile                                                    */
   /* ================================================================ */
 
