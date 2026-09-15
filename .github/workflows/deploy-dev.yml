@@ -43,7 +43,7 @@ jobs:
         run: pnpm -s run lint
 
       - name: Tests
-        run: pnpm -s run --if-present test
+        run: pnpm -s run test
 
       - name: Build
         run: pnpm -s run build
