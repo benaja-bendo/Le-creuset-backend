@@ -149,6 +149,32 @@ export class UsersService {
   }
 
   /**
+   * Fiche d'un client consultée par un admin (GET /users/:id). À la
+   * différence de `findById` — usage interne uniquement (notifications de
+   * statut) — ce résultat part sur le réseau : même `select` que
+   * `getProfile`, sans `passwordHash`.
+   */
+  async findByIdForAdmin(id: string) {
+    return this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        status: true,
+        companyName: true,
+        phone: true,
+        address: true,
+        kbisFileUrl: true,
+        customsFileUrl: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  }
+
+  /**
    * Get full profile for current user (excluding password)
    */
   async getProfile(userId: string) {
