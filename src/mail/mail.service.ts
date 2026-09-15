@@ -224,7 +224,10 @@ export class MailService {
     changes: { label: string; before: string; after: string }[],
   ): Promise<EmailResult> {
     const rows = changes
-      .map((c) => `<li><strong>${c.label}</strong> : ${c.before} → ${c.after}</li>`)
+      .map(
+        (c) =>
+          `<li><strong>${c.label}</strong> : ${c.before} → ${c.after}</li>`,
+      )
       .join("");
 
     return this.sendEmail({

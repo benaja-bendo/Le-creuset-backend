@@ -46,7 +46,9 @@ export class InvoicesService {
    * dernier manquait dans le filtre en mémoire côté front (facture de
    * `CMD-123456` introuvable autrement qu'à l'œil).
    */
-  async findAll(query: { page?: number; limit?: number; search?: string } = {}) {
+  async findAll(
+    query: { page?: number; limit?: number; search?: string } = {},
+  ) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const where = this.buildInvoiceSearchWhere(query.search);
@@ -97,7 +99,11 @@ export class InvoicesService {
         { invoiceNumber: { contains: term, mode: "insensitive" } },
         { user: { companyName: { contains: term, mode: "insensitive" } } },
         { user: { email: { contains: term, mode: "insensitive" } } },
-        { orders: { some: { orderNumber: { contains: term, mode: "insensitive" } } } },
+        {
+          orders: {
+            some: { orderNumber: { contains: term, mode: "insensitive" } },
+          },
+        },
       ],
     };
   }
@@ -146,7 +152,10 @@ export class InvoicesService {
     ]);
 
     const merged = [
-      ...invoices.map((invoice) => ({ ...invoice, type: "individual" as const })),
+      ...invoices.map((invoice) => ({
+        ...invoice,
+        type: "individual" as const,
+      })),
       ...groups.map((group) => ({ ...group, type: "group" as const })),
     ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
@@ -214,10 +223,7 @@ export class InvoicesService {
       select: { userId: true },
     });
     if (!order) throw new NotFoundException("Commande non trouvée");
-    if (
-      order.userId !== requestingUser.id &&
-      requestingUser.role !== "ADMIN"
-    ) {
+    if (order.userId !== requestingUser.id && requestingUser.role !== "ADMIN") {
       throw new ForbiddenException(
         "Vous n'avez pas accès aux factures de cette commande",
       );
