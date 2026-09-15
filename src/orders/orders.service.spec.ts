@@ -59,7 +59,12 @@ describe("OrdersService", () => {
           take: 20,
         }),
       );
-      expect(result).toEqual({ items: [fakeOrder()], total: 1, page: 1, limit: 20 });
+      expect(result).toEqual({
+        items: [fakeOrder()],
+        total: 1,
+        page: 1,
+        limit: 20,
+      });
     });
 
     it("should filter by status and page when provided", async () => {
@@ -161,7 +166,10 @@ describe("OrdersService", () => {
     it("should use the provided order number instead of generating one", async () => {
       prisma.order.create.mockResolvedValue(fakeOrder());
 
-      await service.createManual({ userId: "user-1", orderNumber: "CMD-CUSTOM" });
+      await service.createManual({
+        userId: "user-1",
+        orderNumber: "CMD-CUSTOM",
+      });
 
       expect(prisma.order.findFirst).not.toHaveBeenCalled();
       expect(prisma.order.create).toHaveBeenCalledWith(
@@ -174,7 +182,11 @@ describe("OrdersService", () => {
     it("should turn a duplicate order number into a clear error", async () => {
       const conflict = new Prisma.PrismaClientKnownRequestError(
         "Unique constraint failed",
-        { code: "P2002", clientVersion: "5.0.0", meta: { target: ["orderNumber"] } },
+        {
+          code: "P2002",
+          clientVersion: "5.0.0",
+          meta: { target: ["orderNumber"] },
+        },
       );
       prisma.order.create.mockRejectedValue(conflict);
 
@@ -296,16 +308,18 @@ describe("OrdersService", () => {
     it("should reject a zero or negative quantity", async () => {
       prisma.order.findUnique.mockResolvedValue(fakeOrder());
 
-      await expect(
-        service.update("order-1", { quantity: -1 }),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.update("order-1", { quantity: -1 })).rejects.toThrow(
+        BadRequestException,
+      );
       expect(prisma.order.update).not.toHaveBeenCalled();
     });
   });
 
   describe("delete", () => {
     it("should delete an order with no linked invoice", async () => {
-      prisma.order.findUnique.mockResolvedValue(fakeOrder({ invoiceGroupId: null }));
+      prisma.order.findUnique.mockResolvedValue(
+        fakeOrder({ invoiceGroupId: null }),
+      );
       prisma.invoice.count.mockResolvedValue(0);
       prisma.order.delete.mockResolvedValue(fakeOrder());
 
@@ -317,7 +331,9 @@ describe("OrdersService", () => {
     });
 
     it("should reject deleting an order with an individual invoice", async () => {
-      prisma.order.findUnique.mockResolvedValue(fakeOrder({ invoiceGroupId: null }));
+      prisma.order.findUnique.mockResolvedValue(
+        fakeOrder({ invoiceGroupId: null }),
+      );
       prisma.invoice.count.mockResolvedValue(1);
 
       await expect(service.delete("order-1")).rejects.toThrow(

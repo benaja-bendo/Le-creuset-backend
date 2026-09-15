@@ -101,7 +101,9 @@ export class InvoiceGroupsService {
     }, "FAC-GRP");
   }
 
-  async findAll(query: { page?: number; limit?: number; search?: string } = {}) {
+  async findAll(
+    query: { page?: number; limit?: number; search?: string } = {},
+  ) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const term = query.search?.trim();

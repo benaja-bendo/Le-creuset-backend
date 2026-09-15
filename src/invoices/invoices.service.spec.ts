@@ -60,7 +60,12 @@ describe("InvoicesService", () => {
           take: 20,
         }),
       );
-      expect(result).toEqual({ items: [fakeInvoice()], total: 1, page: 1, limit: 20 });
+      expect(result).toEqual({
+        items: [fakeInvoice()],
+        total: 1,
+        page: 1,
+        limit: 20,
+      });
     });
 
     it("should search by invoice number, client, or linked order number", async () => {
@@ -73,7 +78,11 @@ describe("InvoicesService", () => {
         expect.objectContaining({
           where: {
             OR: expect.arrayContaining([
-              { order: { orderNumber: { contains: "CMD-123456", mode: "insensitive" } } },
+              {
+                order: {
+                  orderNumber: { contains: "CMD-123456", mode: "insensitive" },
+                },
+              },
             ]),
           },
         }),

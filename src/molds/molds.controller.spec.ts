@@ -10,9 +10,12 @@ describe("MoldsController", () => {
   beforeEach(async () => {
     moldsService = {
       findByUser: jest.fn().mockResolvedValue([fakeMold()]),
-      findAll: jest
-        .fn()
-        .mockResolvedValue({ items: [fakeMold()], total: 1, page: 1, limit: 20 }),
+      findAll: jest.fn().mockResolvedValue({
+        items: [fakeMold()],
+        total: 1,
+        page: 1,
+        limit: 20,
+      }),
       create: jest.fn().mockResolvedValue(fakeMold()),
       delete: jest.fn().mockResolvedValue(fakeMold()),
     };

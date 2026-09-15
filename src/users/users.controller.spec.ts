@@ -22,9 +22,12 @@ describe("UsersController", () => {
   beforeEach(async () => {
     usersService = {
       register: jest.fn().mockResolvedValue(fakeUser({ status: "PENDING" })),
-      findAll: jest
-        .fn()
-        .mockResolvedValue({ items: [fakeUser()], total: 1, page: 1, limit: 20 }),
+      findAll: jest.fn().mockResolvedValue({
+        items: [fakeUser()],
+        total: 1,
+        page: 1,
+        limit: 20,
+      }),
       findPending: jest.fn().mockResolvedValue([]),
       updateStatus: jest.fn().mockResolvedValue(fakeUser({ status: "ACTIVE" })),
       findById: jest.fn().mockResolvedValue(fakeUser()),
@@ -189,7 +192,11 @@ describe("UsersController", () => {
       expect(mailService.sendProfileUpdatedByAdminEmail).toHaveBeenCalledWith(
         "test@example.com",
         expect.arrayContaining([
-          { label: "Contact principal", before: "Ancien nom", after: "Nouveau nom" },
+          {
+            label: "Contact principal",
+            before: "Ancien nom",
+            after: "Nouveau nom",
+          },
           { label: "Téléphone", before: "0600000000", after: "0611111111" },
         ]),
       );
