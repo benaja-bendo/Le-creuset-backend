@@ -211,8 +211,9 @@ export class UsersController {
   }
 
   @Get(":id")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("ADMIN")
   async byId(@Param("id") id: string) {
-    return this.usersService.findById(id);
+    return this.usersService.findByIdForAdmin(id);
   }
 }
