@@ -4,6 +4,7 @@ import { Throttle } from "@nestjs/throttler";
 import { AuthService } from "./auth.service";
 import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
+import { ResetPasswordDto } from "./dto/reset-password.dto";
 import { MailService } from "../mail/mail.service";
 import { JwtAuthGuard } from "./jwt-auth.guard";
 
@@ -43,7 +44,7 @@ export class AuthController {
   }
 
   @Post("reset-password")
-  async resetPassword(@Body() dto: any) {
+  async resetPassword(@Body() dto: ResetPasswordDto) {
     await this.authService.resetPassword(dto.token, dto.newPassword);
     return { ok: true, message: "Mot de passe mis à jour avec succès." };
   }
