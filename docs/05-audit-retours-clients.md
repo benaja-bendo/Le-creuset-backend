@@ -6,6 +6,28 @@ Audit initial réalisé le **9 août 2026** sur `develop` (`9482b30`). Ce docume
 
 ---
 
+## Retours d'octobre 2026 — corrigés
+
+Retour du 22/10/2026 (suivi dans `retours-clients/2026-10-22-refonte-vitrine.md`, hors repo).
+
+### ✅ Mot de passe oublié : un mot de passe de moins de 6 caractères était accepté — fait
+
+`POST /auth/reset-password` prenait un `@Body() dto: any` : aucune validation, donc un mot de passe de 1 caractère était enregistré, puis refusé à la connexion (`login.dto.ts` exige `min(6)`) et le compte devenait inaccessible. La route est maintenant validée par `ResetPasswordSchema` (`src/auth/dto/reset-password.dto.ts`, `newPassword` ≥ 6 caractères, comme l'inscription). PR #20, test dans `auth.controller.spec.ts`.
+
+> Quatre règles de mot de passe coexistent encore : inscription ≥ 6, connexion ≥ 6, changement depuis le profil ≥ 8 + majuscule + chiffre (`update-password.dto.ts`), reset ≥ 6. À harmoniser si le client le souhaite : relever la règle ne doit pas bloquer la connexion des comptes existants.
+
+### ✅ Formulaire de contact de la vitrine — route ajoutée
+
+`POST /contact` (publique) : envoie un email à `CONTACT_EMAIL` (défaut `contact@lagrenaille.fr`), `Reply-To` = visiteur, 5 appels/min/IP, champ pot de miel `website`, tous les champs échappés. La page Contact affichait de fausses coordonnées et un formulaire qui n'envoyait rien. PR #21, `src/contact/`.
+
+### ✅ Emails : saisies insérées sans échappement — fait
+
+Les gabarits HTML insèrent des valeurs saisies par des utilisateurs. Le cas le plus concret : `RegisterSchema` accepte toute URL `https://…` pour `kbisFileUrl` / `customsFileUrl`, et l'email envoyé à l'administrateur l'insérait telle quelle (faux lien « KBIS », balises). Corrigé avec `escapeHtml()` (`src/common/escape-html.ts`) dans `auth.controller.ts` (inscription, réinitialisation) et `mail.service.ts` (devis, activation, commande terminée, modification de profil). Les objets d'email passent par `toSingleLine()`. Quatre tests échouent si on retire le correctif.
+
+**À savoir** : un nouveau gabarit HTML doit appliquer `escapeHtml()` à toute valeur qui ne vient pas du code.
+
+---
+
 ## Retours d'août 2026 — corrigés
 
 ### ✅ Numéros de commande faux sur les factures

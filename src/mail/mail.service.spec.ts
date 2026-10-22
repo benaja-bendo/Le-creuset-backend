@@ -212,4 +212,64 @@ describe("MailService", () => {
       );
     });
   });
+  describe("email templates", () => {
+    let service: MailService;
+    let sendEmail: jest.SpyInstance;
+    const evil = `<img src=x onerror="alert(1)">`;
+    const escaped = "&lt;img src=x onerror=&quot;alert(1)&quot;&gt;";
+
+    beforeEach(async () => {
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          MailService,
+          {
+            provide: ConfigService,
+            useValue: createMockConfigService({
+              FRONTEND_URL: "https://app.example",
+            }),
+          },
+        ],
+      }).compile();
+      service = module.get<MailService>(MailService);
+      sendEmail = jest
+        .spyOn(service, "sendEmail")
+        .mockResolvedValue({ id: "", success: true });
+    });
+
+    const htmlOfLastEmail = () => sendEmail.mock.calls[0][0].html as string;
+
+    // Chacune de ces valeurs peut venir d'une saisie (référence, nom, société,
+    // numéro de facture) : elle ne doit jamais s'interpréter comme du HTML.
+    it("escapes the quote reference and customer in the quote emails", async () => {
+      await service.sendQuoteConfirmation(
+        "c@example.com",
+        evil,
+        `https://x.io/?a=1&b="2"`,
+      );
+      expect(htmlOfLastEmail()).not.toContain(evil);
+      expect(htmlOfLastEmail()).toContain(escaped);
+      expect(htmlOfLastEmail()).toContain(
+        "https://x.io/?a=1&amp;b=&quot;2&quot;",
+      );
+
+      sendEmail.mockClear();
+      await service.sendAdminNotification("REF-1", evil, 2);
+      expect(htmlOfLastEmail()).not.toContain(evil);
+      expect(htmlOfLastEmail()).toContain(escaped);
+    });
+
+    it("escapes the order reference and invoice number in the order-completed email", async () => {
+      await service.sendOrderCompletedEmail("c@example.com", evil, evil, 120);
+      expect(htmlOfLastEmail()).not.toContain(evil);
+      expect(htmlOfLastEmail().split(escaped).length - 1).toBe(2);
+    });
+
+    it("escapes every changed field in the profile-updated email", async () => {
+      await service.sendProfileUpdatedByAdminEmail("c@example.com", [
+        { label: evil, before: evil, after: evil },
+      ]);
+      expect(htmlOfLastEmail()).not.toContain(evil);
+      expect(htmlOfLastEmail().split(escaped).length - 1).toBe(3);
+    });
+  });
 });

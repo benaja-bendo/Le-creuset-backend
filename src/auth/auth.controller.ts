@@ -4,8 +4,10 @@ import { Throttle } from "@nestjs/throttler";
 import { AuthService } from "./auth.service";
 import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
+import { ResetPasswordDto } from "./dto/reset-password.dto";
 import { MailService } from "../mail/mail.service";
 import { JwtAuthGuard } from "./jwt-auth.guard";
+import { escapeHtml, toSingleLine } from "../common/escape-html";
 
 // Plafond resserré par rapport au défaut global (100/min, app.module.ts) :
 // ces trois routes sont ouvertes sans authentification et chacune a un coût
@@ -34,7 +36,7 @@ export class AuthController {
           <h1>Réinitialisation de mot de passe</h1>
           <p>Vous avez demandé la réinitialisation de votre mot de passe.</p>
           <p>Cliquez sur le lien ci-dessous pour créer un nouveau mot de passe :</p>
-          <p><a href="${resetLink}">Réinitialiser mon mot de passe</a></p>
+          <p><a href="${escapeHtml(resetLink)}">Réinitialiser mon mot de passe</a></p>
           <p>Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet email.</p>
         `,
       });
@@ -43,7 +45,7 @@ export class AuthController {
   }
 
   @Post("reset-password")
-  async resetPassword(@Body() dto: any) {
+  async resetPassword(@Body() dto: ResetPasswordDto) {
     await this.authService.resetPassword(dto.token, dto.newPassword);
     return { ok: true, message: "Mot de passe mis à jour avec succès." };
   }
@@ -52,21 +54,22 @@ export class AuthController {
   @Throttle(AUTH_THROTTLE)
   async register(@Body() dto: RegisterDto) {
     const result = await this.authService.register(dto);
+    const loginUrl = this.configService.get<string>(
+      "FRONTEND_URL",
+      "http://dev.lagrenaille.fr/login",
+    );
     await this.mailService.sendEmail({
       to: process.env.ADMIN_EMAIL || "admin@lagrenaille.fr",
-      subject: `Validation requise - Nouveau compte : ${dto.companyName}`,
+      subject: `Validation requise - Nouveau compte : ${toSingleLine(dto.companyName)}`,
       html: `
         <h1>Nouvelle inscription à valider</h1>
         <ul>
-          <li><strong>Email:</strong> ${dto.email}</li>
-          <li><strong>Entreprise:</strong> ${dto.companyName}</li>
-          <li><strong>KBIS:</strong> ${dto.kbisFileUrl}</li>
-          <li><strong>Douanes:</strong> ${dto.customsFileUrl}</li>
+          <li><strong>Email:</strong> ${escapeHtml(dto.email)}</li>
+          <li><strong>Entreprise:</strong> ${escapeHtml(dto.companyName)}</li>
+          <li><strong>KBIS:</strong> ${escapeHtml(dto.kbisFileUrl ?? "")}</li>
+          <li><strong>Douanes:</strong> ${escapeHtml(dto.customsFileUrl ?? "")}</li>
         </ul>
-        <p>Veuillez vous <a href="${this.configService.get<string>(
-          "FRONTEND_URL",
-          "http://dev.lagrenaille.fr/login",
-        )}">connecter en tant qu'administrateur</a> pour accepter ou rejeter ce compte.</p>
+        <p>Veuillez vous <a href="${escapeHtml(loginUrl)}">connecter en tant qu'administrateur</a> pour accepter ou rejeter ce compte.</p>
       `,
     });
     return result;

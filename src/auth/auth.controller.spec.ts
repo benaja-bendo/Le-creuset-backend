@@ -3,6 +3,8 @@ import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
 import { MailService } from "../mail/mail.service";
 import { ConfigService } from "@nestjs/config";
+import { ArgumentMetadata } from "@nestjs/common";
+import { ZodValidationException, ZodValidationPipe } from "nestjs-zod";
 import {
   createMockMailService,
   createMockConfigService,
@@ -21,6 +23,7 @@ describe("AuthController", () => {
       login: jest
         .fn()
         .mockResolvedValue({ token: "jwt", user: { id: "user-1" } }),
+      resetPassword: jest.fn().mockResolvedValue(undefined),
     };
     mailService = createMockMailService();
 
@@ -60,6 +63,27 @@ describe("AuthController", () => {
       );
       expect(result).toEqual({ id: "user-1", status: "PENDING" });
     });
+
+    // Le schéma d'inscription accepte toute URL https:// pour le KBIS : sans
+    // échappement, l'email reçu par l'administrateur porterait des balises
+    // choisies par l'inscrit (faux lien « KBIS » compris).
+    it("escapes what the applicant typed in the admin notification", async () => {
+      await controller.register({
+        ...dto,
+        companyName: "<b>Evil</b>\nBcc: victim@example.com",
+        kbisFileUrl:
+          'https://evil.example/"><a href="https://phish.example">KBIS',
+      });
+
+      const { html, subject } = mailService.sendEmail.mock.calls[0][0];
+      expect(html).not.toContain("<b>Evil</b>");
+      expect(html).not.toContain('"><a href="https://phish.example">');
+      expect(html).toContain("&lt;b&gt;Evil&lt;/b&gt;");
+      expect(html).toContain(
+        "&quot;&gt;&lt;a href=&quot;https://phish.example&quot;&gt;KBIS",
+      );
+      expect(subject).not.toMatch(/[\r\n]/);
+    });
   });
 
   describe("POST /login", () => {
@@ -69,6 +93,44 @@ describe("AuthController", () => {
 
       expect(authService.login).toHaveBeenCalledWith(dto);
       expect(result).toEqual({ token: "jwt", user: { id: "user-1" } });
+    });
+  });
+
+  describe("POST /reset-password", () => {
+    // Rejoue ce que fait le ZodValidationPipe global (app.module.ts) sur le
+    // body, avec le type déclaré par le contrôleur : prouve à la fois le
+    // schéma et son branchement sur la route.
+    const validateBody = (body: unknown) => {
+      const [metatype] = Reflect.getMetadata(
+        "design:paramtypes",
+        AuthController.prototype,
+        "resetPassword",
+      );
+      const metadata: ArgumentMetadata = { type: "body", metatype };
+      return new ZodValidationPipe().transform(body, metadata);
+    };
+
+    it("should reject a new password shorter than 6 characters", () => {
+      expect(() =>
+        validateBody({ token: "reset-token", newPassword: "12345" }),
+      ).toThrow(ZodValidationException);
+    });
+
+    it("should reject a missing token", () => {
+      expect(() => validateBody({ token: "", newPassword: "123456" })).toThrow(
+        ZodValidationException,
+      );
+    });
+
+    it("should accept a 6-character password and delegate to authService", async () => {
+      const dto = validateBody({ token: "reset-token", newPassword: "123456" });
+      const result = await controller.resetPassword(dto);
+
+      expect(authService.resetPassword).toHaveBeenCalledWith(
+        "reset-token",
+        "123456",
+      );
+      expect(result).toEqual(expect.objectContaining({ ok: true }));
     });
   });
 
