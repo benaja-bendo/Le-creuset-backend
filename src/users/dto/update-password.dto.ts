@@ -1,22 +1,13 @@
 import { z } from "zod";
 import { createZodDto } from "nestjs-zod";
+import { newPasswordSchema } from "../../auth/password-policy";
 
 export const UpdatePasswordSchema = z
   .object({
     currentPassword: z
       .string()
-      .min(6, "Le mot de passe actuel doit comporter au moins 6 caractères"),
-    newPassword: z
-      .string()
-      .min(8, "Le nouveau mot de passe doit comporter au moins 8 caractères")
-      .regex(
-        /[A-Z]/,
-        "Le nouveau mot de passe doit contenir au moins une majuscule",
-      )
-      .regex(
-        /[0-9]/,
-        "Le nouveau mot de passe doit contenir au moins un chiffre",
-      ),
+      .min(1, { message: "Le mot de passe actuel est requis" }),
+    newPassword: newPasswordSchema,
     confirmPassword: z.string(),
   })
   .refine((data) => data.newPassword === data.confirmPassword, {

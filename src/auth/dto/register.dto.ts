@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createZodDto } from "nestjs-zod";
+import { newPasswordSchema } from "../password-policy";
 
 // Accepte soit une URL complète, soit un chemin relatif commençant par /api/
 const filePathOrUrl = z
@@ -14,9 +15,7 @@ const filePathOrUrl = z
 
 export const RegisterSchema = z.object({
   email: z.string().email({ message: "Email invalide" }),
-  password: z
-    .string()
-    .min(6, { message: "Le mot de passe doit contenir au moins 6 caractères" }),
+  password: newPasswordSchema,
   name: z.string().optional(),
   companyName: z.string().min(2, {
     message: "Le nom de l'entreprise doit contenir au moins 2 caractères",

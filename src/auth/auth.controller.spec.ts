@@ -110,25 +110,28 @@ describe("AuthController", () => {
       return new ZodValidationPipe().transform(body, metadata);
     };
 
-    it("should reject a new password shorter than 6 characters", () => {
+    it("should reject a new password shorter than 8 characters", () => {
       expect(() =>
-        validateBody({ token: "reset-token", newPassword: "12345" }),
+        validateBody({ token: "reset-token", newPassword: "1234567" }),
       ).toThrow(ZodValidationException);
     });
 
     it("should reject a missing token", () => {
-      expect(() => validateBody({ token: "", newPassword: "123456" })).toThrow(
-        ZodValidationException,
-      );
+      expect(() =>
+        validateBody({ token: "", newPassword: "12345678" }),
+      ).toThrow(ZodValidationException);
     });
 
-    it("should accept a 6-character password and delegate to authService", async () => {
-      const dto = validateBody({ token: "reset-token", newPassword: "123456" });
+    it("should accept an 8-character password and delegate to authService", async () => {
+      const dto = validateBody({
+        token: "reset-token",
+        newPassword: "12345678",
+      });
       const result = await controller.resetPassword(dto);
 
       expect(authService.resetPassword).toHaveBeenCalledWith(
         "reset-token",
-        "123456",
+        "12345678",
       );
       expect(result).toEqual(expect.objectContaining({ ok: true }));
     });
