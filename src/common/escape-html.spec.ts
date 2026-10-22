@@ -1,4 +1,4 @@
-import { escapeHtml } from "./escape-html";
+import { escapeHtml, toSingleLine } from "./escape-html";
 
 describe("escapeHtml", () => {
   it("should neutralise tags and attributes", () => {
@@ -15,5 +15,17 @@ describe("escapeHtml", () => {
     expect(escapeHtml("Bague en or 18 carats — 12,5 g")).toBe(
       "Bague en or 18 carats — 12,5 g",
     );
+  });
+});
+
+describe("toSingleLine", () => {
+  it("should collapse line breaks and repeated spaces", () => {
+    expect(toSingleLine("Atelier\r\nBcc: x@y.fr \t Dupont")).toBe(
+      "Atelier Bcc: x@y.fr Dupont",
+    );
+  });
+
+  it("should trim the ends", () => {
+    expect(toSingleLine("  La Grenaille \n")).toBe("La Grenaille");
   });
 });

@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Resend } from "resend";
 import * as nodemailer from "nodemailer";
+import { escapeHtml } from "../common/escape-html";
 
 export interface EmailOptions {
   to: string | string[];
@@ -110,8 +111,8 @@ export class MailService {
       html: `
         <h1>Demande de devis reçue</h1>
         <p>Bonjour,</p>
-        <p>Nous avons bien reçu votre demande de devis (référence: <strong>${quoteRef}</strong>).</p>
-        <p>Vous pouvez suivre l'état de votre demande ici: <a href="${quoteUrl}">${quoteUrl}</a></p>
+        <p>Nous avons bien reçu votre demande de devis (référence: <strong>${escapeHtml(quoteRef)}</strong>).</p>
+        <p>Vous pouvez suivre l'état de votre demande ici: <a href="${escapeHtml(quoteUrl)}">${escapeHtml(quoteUrl)}</a></p>
         <p>Nous reviendrons vers vous rapidement.</p>
         <p>Cordialement,<br/>L'équipe La Grenaille</p>
       `,
@@ -138,8 +139,8 @@ export class MailService {
       html: `
         <h1>Nouvelle demande de devis</h1>
         <ul>
-          <li><strong>Référence:</strong> ${quoteRef}</li>
-          <li><strong>Client:</strong> ${customerEmail}</li>
+          <li><strong>Référence:</strong> ${escapeHtml(quoteRef)}</li>
+          <li><strong>Client:</strong> ${escapeHtml(customerEmail)}</li>
           <li><strong>Fichiers:</strong> ${fileCount}</li>
         </ul>
       `,
@@ -160,7 +161,7 @@ export class MailService {
       html: `
         <h1>Bienvenue</h1>
         <p>Votre compte professionnel a été activé.</p>
-        <p>Vous pouvez vous connecter ici: <a href="${frontendUrl}/login">Se connecter</a></p>
+        <p>Vous pouvez vous connecter ici: <a href="${escapeHtml(frontendUrl)}/login">Se connecter</a></p>
       `,
       text: `Votre compte professionnel a été activé. Connectez-vous: ${frontendUrl}/login`,
     });
@@ -188,16 +189,16 @@ export class MailService {
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h1 style="color: #1a1a1a;">Votre commande est terminée !</h1>
           <p>Bonjour,</p>
-          <p>Nous avons le plaisir de vous informer que votre commande <strong>${orderRef}</strong> a été traitée avec succès.</p>
+          <p>Nous avons le plaisir de vous informer que votre commande <strong>${escapeHtml(orderRef)}</strong> a été traitée avec succès.</p>
           
           <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <h3 style="margin-top: 0; color: #333;">Facture N° ${invoiceNumber}</h3>
-            ${amountText ? `<p style="font-size: 24px; font-weight: bold; color: #c9a227;">${amountText}</p>` : ""}
+            <h3 style="margin-top: 0; color: #333;">Facture N° ${escapeHtml(invoiceNumber)}</h3>
+            ${amountText ? `<p style="font-size: 24px; font-weight: bold; color: #c9a227;">${escapeHtml(amountText)}</p>` : ""}
             <p style="color: #666;">Votre facture est disponible dans votre espace client.</p>
           </div>
           
           <p>
-            <a href="${frontendUrl}/client/invoices" 
+            <a href="${escapeHtml(frontendUrl)}/client/invoices" 
                style="display: inline-block; background: #c9a227; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
               Voir ma facture
             </a>
@@ -226,7 +227,7 @@ export class MailService {
     const rows = changes
       .map(
         (c) =>
-          `<li><strong>${c.label}</strong> : ${c.before} → ${c.after}</li>`,
+          `<li><strong>${escapeHtml(c.label)}</strong> : ${escapeHtml(c.before)} → ${escapeHtml(c.after)}</li>`,
       )
       .join("");
 

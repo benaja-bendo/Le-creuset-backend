@@ -63,6 +63,27 @@ describe("AuthController", () => {
       );
       expect(result).toEqual({ id: "user-1", status: "PENDING" });
     });
+
+    // Le schéma d'inscription accepte toute URL https:// pour le KBIS : sans
+    // échappement, l'email reçu par l'administrateur porterait des balises
+    // choisies par l'inscrit (faux lien « KBIS » compris).
+    it("escapes what the applicant typed in the admin notification", async () => {
+      await controller.register({
+        ...dto,
+        companyName: "<b>Evil</b>\nBcc: victim@example.com",
+        kbisFileUrl:
+          'https://evil.example/"><a href="https://phish.example">KBIS',
+      });
+
+      const { html, subject } = mailService.sendEmail.mock.calls[0][0];
+      expect(html).not.toContain("<b>Evil</b>");
+      expect(html).not.toContain('"><a href="https://phish.example">');
+      expect(html).toContain("&lt;b&gt;Evil&lt;/b&gt;");
+      expect(html).toContain(
+        "&quot;&gt;&lt;a href=&quot;https://phish.example&quot;&gt;KBIS",
+      );
+      expect(subject).not.toMatch(/[\r\n]/);
+    });
   });
 
   describe("POST /login", () => {
