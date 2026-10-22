@@ -14,3 +14,11 @@ const HTML_ENTITIES: Record<string, string> = {
 export function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (char) => HTML_ENTITIES[char]);
 }
+
+/**
+ * Ramène une saisie sur une seule ligne avant de l'utiliser dans l'objet d'un
+ * email : un saut de ligne n'a rien à faire dans un en-tête.
+ */
+export function toSingleLine(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
