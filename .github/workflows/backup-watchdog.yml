@@ -1,0 +1,42 @@
+name: 🛟 Surveillance de la sauvegarde
+
+# Lit chaque matin la date de la dernière sauvegarde réussie sur le VPS et
+# échoue (GitHub envoie alors un email) si elle a plus de 25 h. La sauvegarde
+# tourne à 03:30 (heure du serveur) : une nuit ratée se voit le matin même.
+# Cela détecte aussi le cas où le timer ne se lance plus du tout, que le
+# serveur ne pourrait pas signaler lui-même. Installation de la sauvegarde :
+# dépôt vps_infra, rôle `backup`.
+on:
+  schedule:
+    - cron: '30 6 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Dernière sauvegarde de moins de 25 h
+    runs-on: ubuntu-latest
+    steps:
+      - name: Lire le marqueur de dernière réussite sur le VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY || secrets.VPS_KEY }}
+          passphrase: ${{ secrets.VPS_PASSPHRASE }}
+          script_stop: true
+          script: |
+            marker=/var/lib/lagrenaille-backup/last-success
+            if [ ! -r "$marker" ]; then
+              echo "ALERTE : $marker est absent, aucune sauvegarde n'a jamais réussi."
+              exit 1
+            fi
+            last="$(cat "$marker")"
+            age=$(( $(date +%s) - $(date -d "$last" +%s) ))
+            echo "Dernière sauvegarde réussie : $last (il y a $(( age / 3600 )) h)."
+            if [ "$age" -ge 90000 ]; then
+              echo "ALERTE : la dernière sauvegarde a plus de 25 h."
+              exit 1
+            fi
