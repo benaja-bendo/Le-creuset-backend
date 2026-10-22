@@ -14,7 +14,11 @@ Retour du 22/10/2026 (suivi dans `retours-clients/2026-10-22-refonte-vitrine.md`
 
 `POST /auth/reset-password` prenait un `@Body() dto: any` : aucune validation, donc un mot de passe de 1 caractère était enregistré, puis refusé à la connexion (`login.dto.ts` exige `min(6)`) et le compte devenait inaccessible. La route est maintenant validée par `ResetPasswordSchema` (`src/auth/dto/reset-password.dto.ts`, `newPassword` ≥ 6 caractères, comme l'inscription). PR #20, test dans `auth.controller.spec.ts`.
 
-> Quatre règles de mot de passe coexistent encore : inscription ≥ 6, connexion ≥ 6, changement depuis le profil ≥ 8 + majuscule + chiffre (`update-password.dto.ts`), reset ≥ 6. À harmoniser si le client le souhaite : relever la règle ne doit pas bloquer la connexion des comptes existants.
+> Les règles de mot de passe ont été unifiées ensuite, voir plus bas.
+
+### ✅ Une seule règle de mot de passe — fait
+
+Quatre règles coexistaient (inscription ≥ 6, reset ≥ 6, connexion ≥ 6, changement depuis le profil ≥ 8 + majuscule + chiffre). Désormais : **8 caractères minimum, rien d'autre**, défini une seule fois dans `src/auth/password-policy.ts` et appliqué à l'inscription, au reset et au changement depuis le profil. La connexion ne vérifie plus que « non vide » : un compte créé sous l'ancienne règle (6 ou 7 caractères) doit pouvoir se connecter ; seuls les nouveaux mots de passe sont soumis aux 8 caractères. `password-policy.spec.ts` garde les routes alignées.
 
 ### ✅ Formulaire de contact de la vitrine — route ajoutée
 
