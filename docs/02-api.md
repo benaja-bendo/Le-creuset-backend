@@ -29,6 +29,7 @@ src/
 ├── invoice-groups/  factures groupées (N commandes → 1 facture)
 ├── molds/           moules physiques
 ├── library/         fichiers STL archivés
+├── contact/         formulaire de contact de la vitrine → email à l'atelier
 └── common/          test-utils.ts (mocks Jest partagés)
 ```
 
@@ -148,6 +149,11 @@ Toutes les URL sont préfixées par `/api`. **A** = réservé `ADMIN`, **C** = t
 | GET | `/storage/file/:path` | lecture d'un fichier |
 | GET | `/health` | P |
 
+### `/contact`
+| | Route | Accès |
+|---|---|---|
+| POST | `/contact` | P — 5 envois/min par IP, champ pot de miel `website` |
+
 ## Stockage de fichiers
 
 Driver commutable par `STORAGE_DRIVER` :
@@ -161,7 +167,9 @@ Les deux respectent `src/storage/storage.interface.ts`. Les URL renvoyées peuve
 
 ## Emails
 
-[`src/mail/mail.service.ts`](../src/mail/mail.service.ts) — `nodemailer` sur SMTP (Infomaniak par défaut), expéditeur `MAIL_FROM`. Utilisé pour la validation de compte, la réinitialisation de mot de passe et les notifications de commande. Une variable `RESEND_API_KEY` traîne dans `.env.example` mais Resend n'est pas utilisé.
+[`src/mail/mail.service.ts`](../src/mail/mail.service.ts) — `nodemailer` sur SMTP (Infomaniak par défaut), expéditeur `MAIL_FROM`. Utilisé pour la validation de compte, la réinitialisation de mot de passe, les notifications de commande et le formulaire de contact de la vitrine (`src/contact/`, destinataire `CONTACT_EMAIL`, défaut `contact@lagrenaille.fr`, réponse au visiteur via `Reply-To`).
+
+> **Toute saisie d'un tiers interpolée dans un email HTML passe par `escapeHtml()`** ([`src/common/escape-html.ts`](../src/common/escape-html.ts)). Les gabarits d'`auth.controller.ts` et de `mail.service.ts` antérieurs ne le font pas encore. Une variable `RESEND_API_KEY` traîne dans `.env.example` mais Resend n'est pas utilisé.
 
 ## Base de données
 

@@ -47,6 +47,7 @@ DATABASE_URL="postgresql://root:root@localhost:15433/lagrenaille-db?schema=publi
 | `STORAGE_LOCAL_PATH` | dossier des uploads | `./uploads` |
 | `MINIO_*` | endpoint, clés, bucket | utilisé si `STORAGE_DRIVER=minio` |
 | `SMTP_*`, `MAIL_FROM` | envoi d'emails | SMTP Infomaniak |
+| `CONTACT_EMAIL` | destinataire du formulaire de contact | `contact@lagrenaille.fr` |
 | `FRONTEND_URL` | liens dans les emails | `http://localhost:5173` |
 
 `ConfigModule` lit **`.env.local` puis `.env`** — `.env.local` a la priorité, pratique pour des surcharges non versionnées.

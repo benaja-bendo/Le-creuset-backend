@@ -59,6 +59,7 @@ Ces identifiants doivent correspondre à ceux configurés par Ansible sur le VPS
 ### Application
 - `JWT_SECRET` : Clé secrète pour les tokens JWT
 - `ADMIN_EMAIL` : Adresse email de l’administrateur qui reçoit les notifications
+- `CONTACT_EMAIL` *(optionnelle)* : destinataire du formulaire de contact de la vitrine, `contact@lagrenaille.fr` si absente ou vide
 - `MAIL_FROM` : Adresse d’expédition (ex: `"Lagrenaille <contact@lagrenaille.fr>"`)
 - `SMTP_HOST` : Hôte SMTP (ex: `mail.infomaniak.com`)
 - `SMTP_PORT` : Port SMTP (ex: `587`)
